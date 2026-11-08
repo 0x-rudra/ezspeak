@@ -1,4 +1,7 @@
 const { app, BrowserWindow, Tray, Menu, ipcMain, nativeImage, nativeTheme, shell, dialog } = require('electron');
+if (app) {
+  app.name = 'listner';
+}
 const path = require('path');
 const HotkeyManager = require('./src/hotkeyManager');
 const AudioRecorder = require('./src/audioRecorder');
@@ -7,6 +10,7 @@ const ClipboardManager = require('./src/clipboardManager');
 const Config = require('./src/config');
 const Logger = require('./src/logger');
 const LocalServer = require('./src/localServer');
+const TranslationService = require('./src/translationService');
 
 // Disable GPU to prevent flashing and GPU errors
 app.commandLine.appendSwitch('disable-gpu');
@@ -19,6 +23,7 @@ let tray = null;
 let hotkeyManager = null;
 let audioRecorder = null;
 let transcriptionService = null;
+let sarvamTranslator = null;
 let localServer = null;
 let recordingStatus = 'idle'; // 'idle', 'recording', 'processing'
 let isRecording = false;
@@ -26,27 +31,43 @@ let liveAccumulatedText = '';
 let isSliceProcessing = false;
 let pendingSliceData = null;
 
+function getIndicatorTargetPosition() {
+  const saved = Config.getIndicatorPosition();
+  if (saved && typeof saved.x === 'number' && typeof saved.y === 'number') {
+    return [saved.x, saved.y];
+  }
+  try {
+    const { screen } = require('electron');
+    const display = screen.getPrimaryDisplay() || screen.getAllDisplays()[0];
+    const { x: displayX, y: displayY, width, height: displayHeight } = display.bounds;
+    return [
+      Math.floor(displayX + width / 2 - 265),
+      displayY + displayHeight - 110
+    ];
+  } catch (e) {
+    return [100, 100];
+  }
+}
+
 function createRecordingIndicator() {
-  const { screen } = require('electron');
-  const cursorPos = screen.getCursorScreenPoint();
-  const activeDisplay = screen.getDisplayNearestPoint(cursorPos);
-  const { x: displayX, y: displayY, width, height: displayHeight } = activeDisplay.bounds;
+  const [posX, posY] = getIndicatorTargetPosition();
 
   recordingIndicator = new BrowserWindow({
-    title: 'ezspeak-indicator',
-    width: 440,
+    title: 'listner-indicator',
+    width: 530,
     height: 76,
-    x: Math.floor(displayX + width / 2 - 220),
-    y: displayY + displayHeight - 110,
+    x: posX,
+    y: posY,
     frame: false,
     transparent: true,
     alwaysOnTop: true,
     skipTaskbar: true,
     resizable: false,
     show: false,
-    focusable: false,
+    focusable: true,
     acceptFirstMouse: true,
-    visibleOnAllWorkspaces: true,
+    type: 'toolbar', // Ensures tiling compositors (Niri, Hyprland, Sway) float it as an overlay utility
+    hasShadow: false,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       nodeIntegration: false,
@@ -54,34 +75,33 @@ function createRecordingIndicator() {
     }
   });
 
-  if (process.platform === 'win32') {
-    recordingIndicator.setAlwaysOnTop(true, 'pop-up-menu');
-  }
+  recordingIndicator.setAlwaysOnTop(true, 'screen-saver');
+  recordingIndicator.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
 
   recordingIndicator.loadFile('renderer/recording-indicator.html');
   recordingIndicator.setIgnoreMouseEvents(false);
 }
 
 function showRecordingIndicator() {
-  const hotkey = Config.getHotkey() || 'Ctrl+Space';
-  if (recordingIndicator && !recordingIndicator.isDestroyed()) {
-    const { screen } = require('electron');
-    const cursorPos = screen.getCursorScreenPoint();
-    const activeDisplay = screen.getDisplayNearestPoint(cursorPos);
-    const { x: displayX, y: displayY, width, height: displayHeight } = activeDisplay.bounds;
-    recordingIndicator.setPosition(
-      Math.floor(displayX + width / 2 - 220),
-      displayY + displayHeight - 110
-    );
-    recordingIndicator.showInactive();
-    recordingIndicator.webContents.executeJavaScript(`if (typeof setRecordingMode === "function") setRecordingMode(${JSON.stringify(hotkey)});`);
-  } else {
+  const hotkey = Config.getHotkey() || 'Ctrl+Alt+Space';
+  const sarvam = Config.getSarvamSettings();
+  const indicatorData = {
+    hotkey,
+    sarvamConfigured: Boolean(sarvam.apiKey),
+    targetLang: sarvam.targetLang || 'hi-IN',
+    autoTranslate: sarvam.autoTranslate
+  };
+
+  if (!recordingIndicator || recordingIndicator.isDestroyed()) {
     createRecordingIndicator();
-    recordingIndicator.webContents.once('did-finish-load', () => {
-      recordingIndicator.showInactive();
-      recordingIndicator.webContents.executeJavaScript(`if (typeof setRecordingMode === "function") setRecordingMode(${JSON.stringify(hotkey)});`);
-    });
   }
+
+  const [posX, posY] = getIndicatorTargetPosition();
+  recordingIndicator.setPosition(posX, posY);
+  recordingIndicator.setAlwaysOnTop(true, 'screen-saver');
+  recordingIndicator.show();
+  recordingIndicator.moveTop();
+  recordingIndicator.webContents.executeJavaScript(`if (typeof setRecordingMode === "function") setRecordingMode(${JSON.stringify(indicatorData)});`);
 }
 
 function hideRecordingIndicator() {
@@ -161,7 +181,7 @@ function updateTrayMenu() {
   ]);
 
   tray.setContextMenu(contextMenu);
-  tray.setToolTip('ezspeak - Voice to Text');
+  tray.setToolTip('Listner - Voice to Text');
 }
 
 function setRecordingStatus(status) {
@@ -178,9 +198,9 @@ function setRecordingStatus(status) {
 
 function createSettingsWindow() {
   settingsWindow = new BrowserWindow({
-    width: 540,
+    width: 820,
     height: 660,
-    minWidth: 480,
+    minWidth: 720,
     minHeight: 560,
     resizable: true,
     frame: false, // Remove default frame for custom title bar
@@ -259,6 +279,8 @@ async function initializeServices() {
     handleRecordStop,
     globalShortcut
   );
+
+  sarvamTranslator = new TranslationService();
 
   // Initialize local HTTP IPC server for Wayland / global compositor triggers
   localServer = new LocalServer({
@@ -373,12 +395,50 @@ async function handleRecordStop() {
     const { text: cleaned, shouldStop } = detectAndCleanVoiceCommands(rawTranscription);
 
     if (cleaned && cleaned.trim().length > 0) {
-      Logger.log(`Typing transcription word-by-word at cursor: "${cleaned}"`);
-      await ClipboardManager.typeWordByWord(cleaned.trim());
+      const sarvam = Config.getSarvamSettings();
+      let textToPaste = cleaned.trim();
+      let translatedText = null;
+
+      // Auto-translate via Sarvam AI if enabled and key is present
+      if (sarvam.autoTranslate && sarvam.apiKey) {
+        try {
+          Logger.log(`[AutoTranslate] Translating with Sarvam AI (${sarvam.targetLang})...`);
+          if (!sarvamTranslator) sarvamTranslator = new TranslationService();
+          const tr = await sarvamTranslator.translate(cleaned.trim(), {
+            targetLang: sarvam.targetLang,
+            sourceLang: sarvam.sourceLang
+          });
+          if (tr && tr.translatedText) {
+            translatedText = tr.translatedText;
+            textToPaste = tr.translatedText;
+            Logger.success(`[AutoTranslate] Translated text: "${translatedText}"`);
+          }
+        } catch (trErr) {
+          Logger.warn('[AutoTranslate] Translation failed, using original speech:', trErr.message);
+        }
+      }
+
+      Logger.log(`Typing transcription word-by-word at cursor: "${textToPaste}"`);
+      await ClipboardManager.typeWordByWord(textToPaste);
       Config.addToHistory(cleaned.trim());
-      updateIndicatorLiveText(cleaned.trim());
+
+      if (translatedText) {
+        updateIndicatorLiveText(`${translatedText} (${cleaned.trim()})`);
+      } else {
+        updateIndicatorLiveText(cleaned.trim());
+      }
+
       if (settingsWindow && !settingsWindow.isDestroyed()) {
-        try { settingsWindow.webContents.send('history-updated'); } catch (e) {}
+        try {
+          settingsWindow.webContents.send('history-updated');
+          if (translatedText) {
+            settingsWindow.webContents.send('translation-complete', {
+              original: cleaned.trim(),
+              translated: translatedText,
+              targetLang: sarvam.targetLang
+            });
+          }
+        } catch (e) {}
       }
     } else {
       Logger.warn('No text to paste (empty transcription or stop phrase only)');
@@ -417,7 +477,7 @@ ipcMain.on('live-audio-slice', async (event, bufferArray) => {
 
   isSliceProcessing = true;
   try {
-    const tempDir = path.join(require('os').tmpdir(), 'ezspeak');
+    const tempDir = path.join(require('os').tmpdir(), 'listner');
     if (!require('fs').existsSync(tempDir)) {
       require('fs').mkdirSync(tempDir, { recursive: true });
     }
@@ -487,6 +547,19 @@ ipcMain.handle('get-hotkey', () => {
   return Config.getHotkey();
 });
 
+ipcMain.handle('get-mode', () => {
+  return Config.getMode();
+});
+
+ipcMain.handle('set-mode', async (event, mode) => {
+  Config.setMode(mode);
+  if (hotkeyManager) {
+    Logger.log(`Changing dictation mode to "${mode}", restarting monitoring...`);
+    await hotkeyManager.startMonitoring();
+  }
+  return true;
+});
+
 ipcMain.handle('set-hotkey', async (event, hotkey) => {
   Config.setHotkey(hotkey);
 
@@ -497,7 +570,46 @@ ipcMain.handle('set-hotkey', async (event, hotkey) => {
     await hotkeyManager.startMonitoring();
   }
 
+  // Broadcast to windows
+  if (settingsWindow && !settingsWindow.isDestroyed()) {
+    try {
+      settingsWindow.webContents.send('hotkey-changed', hotkey);
+    } catch (e) {}
+  }
+  if (recordingIndicator && !recordingIndicator.isDestroyed()) {
+    try {
+      recordingIndicator.webContents.executeJavaScript(`if (typeof updateHotkeyDisplay === "function") updateHotkeyDisplay(${JSON.stringify(hotkey)});`);
+    } catch (e) {}
+  }
+
   return true;
+});
+
+ipcMain.on('move-indicator', (event, { deltaX, deltaY }) => {
+  if (recordingIndicator && !recordingIndicator.isDestroyed()) {
+    const [currX, currY] = recordingIndicator.getPosition();
+    const newX = Math.round(currX + deltaX);
+    const newY = Math.round(currY + deltaY);
+    recordingIndicator.setPosition(newX, newY);
+    Config.setIndicatorPosition({ x: newX, y: newY });
+  }
+});
+
+ipcMain.on('reset-indicator-position', () => {
+  Config.setIndicatorPosition(null);
+  if (recordingIndicator && !recordingIndicator.isDestroyed()) {
+    const { screen } = require('electron');
+    const cursorPos = screen.getCursorScreenPoint();
+    const activeDisplay = screen.getDisplayNearestPoint(cursorPos);
+    const { x: displayX, y: displayY, width, height: displayHeight } = activeDisplay.bounds;
+    const defaultX = Math.floor(displayX + width / 2 - 265);
+    const defaultY = displayY + displayHeight - 110;
+    recordingIndicator.setPosition(defaultX, defaultY);
+  }
+});
+
+ipcMain.handle('get-indicator-position', () => {
+  return Config.getIndicatorPosition();
 });
 
 ipcMain.on('pause-hotkey', () => {
@@ -657,6 +769,54 @@ ipcMain.handle('clear-history', () => {
   return true;
 });
 
+// ─── Translation (Sarvam AI) IPC Handlers ───────────────────────
+ipcMain.handle('translate-text', async (event, data) => {
+  try {
+    const { text, sourceLang, targetLang, apiKey, model } = data || {};
+    if (!sarvamTranslator) {
+      sarvamTranslator = new TranslationService();
+    }
+    const result = await sarvamTranslator.translate(text, { sourceLang, targetLang, apiKey, model });
+    return result;
+  } catch (error) {
+    Logger.error('translate-text IPC error:', error.message);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('get-sarvam-settings', () => {
+  return Config.getSarvamSettings();
+});
+
+ipcMain.handle('set-sarvam-settings', (event, settings) => {
+  Config.setSarvamSettings(settings);
+  return true;
+});
+
+ipcMain.handle('get-supported-languages', () => {
+  return TranslationService.getSupportedLanguages();
+});
+
+ipcMain.handle('type-at-cursor', async (event, text) => {
+  if (!text || text.trim().length === 0) return false;
+  Logger.log(`Typing text at cursor on demand: "${text.substring(0, 40)}..."`);
+  return await ClipboardManager.typeWordByWord(text.trim());
+});
+
+ipcMain.on('toggle-indicator-translate', (event, enabled) => {
+  Config.setAutoTranslate(enabled);
+  Logger.log(`Translate mode toggled from indicator: ${enabled}`);
+});
+
+ipcMain.handle('test-show-indicator', () => {
+  showRecordingIndicator();
+  updateIndicatorLiveText('Testing floating popup indicator overlay...');
+  setTimeout(() => {
+    hideRecordingIndicator();
+  }, 5000);
+  return true;
+});
+
 // App lifecycle
 // Global error handlers
 process.on('uncaughtException', (error) => {
@@ -700,11 +860,20 @@ app.whenReady().then(async () => {
   await hotkeyManager.startMonitoring();
 
   // Show application window immediately on startup
+  if (process.argv.includes('--test-launch')) {
+    console.log('✓ App launch check passed: Electron app initialized successfully!');
+    setTimeout(() => {
+      app.isQuitting = true;
+      app.quit();
+    }, 300);
+    return;
+  }
+
   showMainWindow('app');
   Logger.success('Application window opened');
 
   console.log('\n========================================');
-  console.log('   ezspeak is ready!');
+  console.log('   Listner is ready!');
   console.log('========================================\n');
 });
 

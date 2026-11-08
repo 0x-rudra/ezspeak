@@ -196,7 +196,7 @@ class TranscriptionService {
 
   async transcribeBuffer(audioBuffer) {
     const os = require('os');
-    const tempDir = path.join(os.tmpdir(), 'ezspeak');
+    const tempDir = path.join(os.tmpdir(), 'listner');
     if (!fs.existsSync(tempDir)) {
       fs.mkdirSync(tempDir, { recursive: true });
     }

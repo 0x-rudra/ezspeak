@@ -30,7 +30,7 @@ class LocalTranscriptionService {
 
     if (!userData) {
       const home = require('os').homedir();
-      userData = path.join(home, '.config', 'ezspeak');
+      userData = path.join(home, '.config', 'listner');
     }
     const modelsDir = path.join(userData, 'whisper-models');
     if (!fs.existsSync(modelsDir)) {

@@ -1,0 +1,2 @@
+#!/bin/bash
+exec env ELECTRON_RUN_AS_NODE=1 /home/rv/Projects/FUCK_UP/wispr_alter/node_modules/.pnpm/electron@27.3.11_supports-color@7.2.0/node_modules/electron/dist/electron "$@"

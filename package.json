@@ -1,9 +1,10 @@
 {
   "name": "listner",
-  "version": "0.1.0",
-  "description": "Voice dictation and live transcription desktop app",
+  "productName": "Listner",
+  "version": "0.2.0",
+  "description": "Cross-platform voice dictation and transcription desktop app",
   "main": "main.js",
-  "packageManager": "pnpm@12.16.1",
+  "packageManager": "pnpm@9.15.0",
   "scripts": {
     "start": "electron .",
     "dev": "electron . --dev"

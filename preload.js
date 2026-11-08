@@ -11,6 +11,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   setMicrophone: (deviceId) => ipcRenderer.invoke('set-microphone', deviceId),
   getHotkey: () => ipcRenderer.invoke('get-hotkey'),
   setHotkey: (hotkey) => ipcRenderer.invoke('set-hotkey', hotkey),
+  getMode: () => ipcRenderer.invoke('get-mode'),
+  setMode: (mode) => ipcRenderer.invoke('set-mode', mode),
   pauseHotkey: () => ipcRenderer.send('pause-hotkey'),
   resumeHotkey: () => ipcRenderer.send('resume-hotkey'),
   getTranscriptionMode: () => ipcRenderer.invoke('get-transcription-mode'),
@@ -68,7 +70,25 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onLiveTranscriptionUpdate: (callback) => {
     ipcRenderer.on('live-dictation-snippet', (event, text) => callback(text));
   },
+  onHotkeyChanged: (callback) => {
+    ipcRenderer.on('hotkey-changed', (event, hotkey) => callback(hotkey));
+  },
 
   // Manual trigger from UI
-  toggleRecording: () => ipcRenderer.send('toggle-recording')
+  toggleRecording: () => ipcRenderer.send('toggle-recording'),
+
+  // Translation (Sarvam AI) & Cursor Actions
+  translateText: (data) => ipcRenderer.invoke('translate-text', data),
+  getSarvamSettings: () => ipcRenderer.invoke('get-sarvam-settings'),
+  setSarvamSettings: (settings) => ipcRenderer.invoke('set-sarvam-settings', settings),
+  toggleIndicatorTranslate: (enabled) => ipcRenderer.send('toggle-indicator-translate', enabled),
+  getSupportedLanguages: () => ipcRenderer.invoke('get-supported-languages'),
+  typeAtCursor: (text) => ipcRenderer.invoke('type-at-cursor', text),
+  testShowIndicator: () => ipcRenderer.invoke('test-show-indicator'),
+  moveIndicator: (deltaX, deltaY) => ipcRenderer.send('move-indicator', { deltaX, deltaY }),
+  resetIndicatorPosition: () => ipcRenderer.send('reset-indicator-position'),
+  getIndicatorPosition: () => ipcRenderer.invoke('get-indicator-position'),
+  onTranslationComplete: (callback) => {
+    ipcRenderer.on('translation-complete', (event, data) => callback(data));
+  }
 });

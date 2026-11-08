@@ -59,11 +59,77 @@ const keyDisplayNames = {
     'F1': 'F1', 'F2': 'F2', 'F3': 'F3', 'F4': 'F4', 'F5': 'F5', 'F6': 'F6',
     'F7': 'F7', 'F8': 'F8', 'F9': 'F9', 'F10': 'F10', 'F11': 'F11', 'F12': 'F12',
     'Ctrl': 'Ctrl', 'CtrlRight': 'Right Ctrl',
+    'Control': 'Ctrl',
     'Alt': 'Alt', 'AltRight': 'Right Alt',
     'Shift': 'Shift', 'ShiftRight': 'Right Shift',
-    'Meta': 'Left Cmd', 'MetaRight': 'Right Cmd',
+    'Meta': 'Super', 'MetaRight': 'Right Super',
+    'Super': 'Super',
     'Space': 'Space', 'Enter': 'Enter', 'Escape': 'Esc'
 };
+
+function formatHotkeyDisplay(hotkeyStr) {
+    if (!hotkeyStr) return 'Ctrl + Alt + Space';
+    return hotkeyStr
+        .split('+')
+        .map(p => p.trim())
+        .map(p => keyDisplayNames[p] || p)
+        .join(' + ');
+}
+
+function applyHotkeyToUI(hotkey) {
+    const formatted = formatHotkeyDisplay(hotkey);
+    const hotkeyInput = document.getElementById('hotkey');
+    const dashHotkey = document.getElementById('dashboardHotkeyDisplay');
+    const currentHotkeyDisplay = document.getElementById('currentHotkeyDisplay');
+
+    if (hotkeyInput) hotkeyInput.value = formatted;
+    if (dashHotkey) dashHotkey.textContent = formatted;
+    if (currentHotkeyDisplay) currentHotkeyDisplay.textContent = formatted;
+
+    const presetBtns = document.querySelectorAll('.preset-btn[data-hotkey]');
+    presetBtns.forEach(b => {
+        const rawMatch = b.dataset.hotkey === hotkey;
+        const fmtMatch = formatHotkeyDisplay(b.dataset.hotkey) === formatted;
+        b.classList.toggle('active', rawMatch || fmtMatch);
+    });
+}
+
+function applyModeToUI(mode) {
+    const radioToggle = document.getElementById('modeRadioToggle');
+    const radioHold = document.getElementById('modeRadioHold');
+    const badge = document.getElementById('dictationModeBadge');
+
+    if (mode === 'hold') {
+        if (radioHold) radioHold.checked = true;
+        if (badge) {
+            badge.textContent = 'Hold (Push-to-Talk)';
+            badge.className = 'status-badge pending';
+        }
+    } else {
+        if (radioToggle) radioToggle.checked = true;
+        if (badge) {
+            badge.textContent = 'Toggle';
+            badge.className = 'status-badge ready';
+        }
+    }
+}
+
+function setupModeSelection() {
+    const radios = document.querySelectorAll('input[name="dictationMode"]');
+    radios.forEach(r => {
+        r.addEventListener('change', async () => {
+            const mode = r.value;
+            try {
+                await window.electronAPI.setMode(mode);
+                applyModeToUI(mode);
+                showToast(`Dictation mode: ${mode === 'hold' ? 'Hold (Push-to-Talk)' : 'Toggle'}`);
+            } catch (err) {
+                console.error('Error changing mode:', err);
+                showToast('Failed to update mode', 'error');
+            }
+        });
+    });
+}
 
 // ─── Toast notification ──────────────────────────────────────────────────────
 function showToast(message, type = 'success') {
@@ -116,23 +182,14 @@ async function loadSettings() {
     try {
         currentSettings = await window.electronAPI.getAllSettings();
         const hotkey = await window.electronAPI.getHotkey();
-
-        const hotkeyInput = document.getElementById('hotkey');
-        const dashHotkey = document.getElementById('dashboardHotkeyDisplay');
         const providerSelect = document.getElementById('transcriptionProvider');
 
-        // Hotkey display
-        if (hotkey) {
-            const displayName = hotkey.split('+')
-                .map(part => keyDisplayNames[part] || part)
-                .join(' + ');
+        // Apply hotkey to all UI locations
+        applyHotkeyToUI(hotkey || 'Ctrl+Alt+Space');
 
-            if (hotkeyInput) hotkeyInput.value = displayName;
-            if (dashHotkey) dashHotkey.textContent = displayName;
-
-            const presetBtns = document.querySelectorAll('.preset-btn');
-            presetBtns.forEach(b => b.classList.toggle('active', b.dataset.hotkey === hotkey));
-        }
+        // Apply dictation mode (Toggle vs Hold)
+        const mode = (await window.electronAPI.getMode()) || 'toggle';
+        applyModeToUI(mode);
 
         // Fill BYOK Inputs
         const openaiKey = document.getElementById('openaiApiKey');
@@ -168,8 +225,14 @@ async function loadSettings() {
         // Load local models
         await refreshLocalModels();
 
+        // Load Sarvam AI translation settings
+        await loadSarvamSettings();
+
         // Update dashboard snippet
         await loadLatestDictationSnippet();
+
+        // Update device status display cards
+        updateDeviceStatusDisplay();
     } catch (error) {
         console.error('Error loading settings:', error);
     }
@@ -535,37 +598,54 @@ function updateRecordingState(status) {
     const pill = document.getElementById('appStatusPill');
     const statusText = document.getElementById('appStatusText');
 
-    if (!micBtn || !prompt || !pill || !statusText) return;
-
     if (status === 'recording') {
-        micBtn.className = 'hero-mic-btn recording';
-        prompt.textContent = 'Listening... Click or release hotkey to finish';
-        pill.className = 'status-indicator-pill recording';
-        statusText.textContent = 'Recording...';
+        if (micBtn) micBtn.className = 'hero-mic-btn recording';
+        if (prompt) prompt.textContent = 'Listening... Click or release hotkey to finish';
+        if (pill) pill.className = 'sidebar-status-pill recording';
+        if (statusText) statusText.textContent = 'Recording...';
     } else if (status === 'processing') {
-        micBtn.className = 'hero-mic-btn processing';
-        prompt.textContent = 'Transcribing audio...';
-        pill.className = 'status-indicator-pill processing';
-        statusText.textContent = 'Transcribing...';
+        if (micBtn) micBtn.className = 'hero-mic-btn processing';
+        if (prompt) prompt.textContent = 'Transcribing audio...';
+        if (pill) pill.className = 'sidebar-status-pill processing';
+        if (statusText) statusText.textContent = 'Transcribing...';
     } else {
-        micBtn.className = 'hero-mic-btn';
-        prompt.textContent = 'Click to start dictation';
-        pill.className = 'status-indicator-pill';
-        statusText.textContent = 'Ready';
+        if (micBtn) micBtn.className = 'hero-mic-btn';
+        if (prompt) prompt.textContent = 'Click to start dictation';
+        if (pill) pill.className = 'sidebar-status-pill';
+        if (statusText) statusText.textContent = 'Ready';
         loadLatestDictationSnippet();
     }
 }
 
+// ─── Device Status Display ───────────────────────────────────────────────────
+function updateDeviceStatusDisplay() {
+    // Update hotkey display card
+    const hotkeyInput = document.getElementById('hotkey');
+    const currentHotkeyDisplay = document.getElementById('currentHotkeyDisplay');
+    if (currentHotkeyDisplay && hotkeyInput && hotkeyInput.value) {
+        currentHotkeyDisplay.textContent = hotkeyInput.value;
+    }
+
+    // Update mic display card from dropdown
+    const micSelect = document.getElementById('microphone');
+    const currentMicDisplay = document.getElementById('currentMicDisplay');
+    if (currentMicDisplay && micSelect && micSelect.selectedIndex >= 0) {
+        currentMicDisplay.textContent = micSelect.options[micSelect.selectedIndex]?.text || 'Default Microphone';
+    }
+}
+
 function setupTabs() {
-    const tabBtns = document.querySelectorAll('.tab-btn');
+    const navItems = document.querySelectorAll('.sidebar-nav-item');
     const panels = {
         app: document.getElementById('panel-app'),
+        translate: document.getElementById('panel-translate'),
+        devices: document.getElementById('panel-devices'),
         settings: document.getElementById('panel-settings'),
         history: document.getElementById('panel-history')
     };
 
     function switchTab(target) {
-        tabBtns.forEach(b => {
+        navItems.forEach(b => {
             if (b.dataset.tab === target) {
                 b.classList.add('active');
             } else {
@@ -583,14 +663,91 @@ function setupTabs() {
             loadAndRenderHistory();
         } else if (target === 'app') {
             loadLatestDictationSnippet();
+        } else if (target === 'devices') {
+            updateDeviceStatusDisplay();
         }
     }
 
-    tabBtns.forEach(btn => {
+    navItems.forEach(btn => {
         btn.addEventListener('click', () => {
             switchTab(btn.dataset.tab);
         });
     });
+
+    const btnHeaderTestPopup = document.getElementById('btnHeaderTestPopup');
+    if (btnHeaderTestPopup) {
+        btnHeaderTestPopup.addEventListener('click', async () => {
+            try {
+                if (window.electronAPI && window.electronAPI.testShowIndicator) {
+                    await window.electronAPI.testShowIndicator();
+                    showToast('Popup overlay displayed for 5s');
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        });
+    }
+
+    // Device panel test popup button
+    const btnDevicesTestPopup = document.getElementById('btnDevicesTestPopup');
+    if (btnDevicesTestPopup) {
+        btnDevicesTestPopup.addEventListener('click', async () => {
+            try {
+                if (window.electronAPI && window.electronAPI.testShowIndicator) {
+                    await window.electronAPI.testShowIndicator();
+                    showToast('Popup overlay displayed for 5s');
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        });
+    }
+
+    const btnResetPopupPos = document.getElementById('btnResetPopupPos');
+    if (btnResetPopupPos) {
+        btnResetPopupPos.addEventListener('click', () => {
+            try {
+                if (window.electronAPI && window.electronAPI.resetIndicatorPosition) {
+                    window.electronAPI.resetIndicatorPosition();
+                    showToast('Popup reset to bottom-center');
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        });
+    }
+
+    const btnCopyWaylandCmd = document.getElementById('btnCopyWaylandCmd');
+    if (btnCopyWaylandCmd) {
+        btnCopyWaylandCmd.addEventListener('click', () => {
+            navigator.clipboard.writeText('curl -s http://127.0.0.1:49152/toggle');
+            showToast('Copied Wayland IPC command!');
+        });
+    }
+
+    // Quick navigation buttons
+    const btnQuickTranslate = document.getElementById('btnQuickGoTranslate');
+    if (btnQuickTranslate) {
+        btnQuickTranslate.addEventListener('click', () => switchTab('translate'));
+    }
+
+    const btnQuickKeys = document.getElementById('btnQuickGoKeys');
+    if (btnQuickKeys) {
+        btnQuickKeys.addEventListener('click', () => switchTab('settings'));
+    }
+
+    const btnDashTranslateLatest = document.getElementById('dashTranslateLatestBtn');
+    if (btnDashTranslateLatest) {
+        btnDashTranslateLatest.addEventListener('click', async () => {
+            const dashText = document.getElementById('dashLatestText')?.textContent?.trim();
+            if (dashText && !dashText.startsWith('No transcriptions')) {
+                const cleaned = dashText.replace(/^"|"$/g, '');
+                const orig = document.getElementById('originalTextInput');
+                if (orig) orig.value = cleaned;
+            }
+            switchTab('translate');
+        });
+    }
 
     // Wire shortcuts to settings
     const btnOpenSettings = document.getElementById('btnOpenSettingsPage');
@@ -605,18 +762,7 @@ function setupTabs() {
 
     const btnGoToMic = document.getElementById('btnGoToSettingsMic');
     if (btnGoToMic) {
-        btnGoToMic.addEventListener('click', () => switchTab('settings'));
-    }
-
-    // Back to App buttons
-    const backSettings = document.getElementById('backToAppFromSettings');
-    if (backSettings) {
-        backSettings.addEventListener('click', () => switchTab('app'));
-    }
-
-    const backHistory = document.getElementById('backToAppFromHistory');
-    if (backHistory) {
-        backHistory.addEventListener('click', () => switchTab('app'));
+        btnGoToMic.addEventListener('click', () => switchTab('devices'));
     }
 
     const linkHistory = document.getElementById('dashViewHistoryLink');
@@ -828,15 +974,8 @@ function setupHotkeyCapture() {
             try {
                 await window.electronAPI.setHotkey(combo);
                 window.electronAPI.resumeHotkey();
-
-                const displayName = finalKeys
-                    .map(part => keyDisplayNames[part] || part)
-                    .join(' + ');
-
-                hotkeyInput.value = displayName;
-                const dashHotkey = document.getElementById('dashboardHotkeyDisplay');
-                if (dashHotkey) dashHotkey.textContent = displayName;
-                showToast('Hotkey saved');
+                applyHotkeyToUI(combo);
+                showToast(`Hotkey saved: ${formatHotkeyDisplay(combo)}`);
             } catch (err) {
                 console.error('Error saving hotkey:', err);
                 window.electronAPI.resumeHotkey();
@@ -854,22 +993,348 @@ function setupHotkeyCapture() {
     });
 
     // Preset buttons click
-    const presetBtns = document.querySelectorAll('.preset-btn');
+    const presetBtns = document.querySelectorAll('.preset-btn[data-hotkey]');
     presetBtns.forEach(btn => {
         btn.addEventListener('click', async () => {
             const hotkey = btn.dataset.hotkey;
             try {
                 await window.electronAPI.setHotkey(hotkey);
-                if (hotkeyInput) hotkeyInput.value = hotkey;
-                const dashHotkey = document.getElementById('dashboardHotkeyDisplay');
-                if (dashHotkey) dashHotkey.textContent = hotkey;
-                presetBtns.forEach(b => b.classList.toggle('active', b.dataset.hotkey === hotkey));
-                showToast(`Hotkey set to ${hotkey}`);
+                applyHotkeyToUI(hotkey);
+                showToast(`Hotkey set to ${formatHotkeyDisplay(hotkey)}`);
             } catch (e) {
                 showToast(`Failed to set hotkey: ${e.message}`, 'error');
             }
         });
     });
+}
+
+// ─── Sarvam AI & Translation Studio ─────────────────────────────────────────
+
+async function loadSarvamSettings() {
+    try {
+        const sarvam = await window.electronAPI.getSarvamSettings();
+        if (!sarvam) return;
+
+        const sarvamKeyInput = document.getElementById('sarvamApiKey');
+        const sarvamDefaultLang = document.getElementById('sarvamDefaultTargetLang');
+        const sarvamModelSelect = document.getElementById('sarvamModelSelect');
+        const sarvamAutoToggle = document.getElementById('sarvamAutoTranslateToggle');
+        const appTargetLangSelect = document.getElementById('appTargetLangSelect');
+
+        if (sarvamKeyInput) sarvamKeyInput.value = sarvam.apiKey || '';
+        if (sarvamDefaultLang && sarvam.targetLang) sarvamDefaultLang.value = sarvam.targetLang;
+        if (sarvamModelSelect && sarvam.model) sarvamModelSelect.value = sarvam.model;
+        if (sarvamAutoToggle) sarvamAutoToggle.checked = Boolean(sarvam.autoTranslate);
+        if (appTargetLangSelect && sarvam.targetLang) appTargetLangSelect.value = sarvam.targetLang;
+
+        updateSarvamKeyBadge(sarvam.apiKey);
+    } catch (err) {
+        console.error('Error loading Sarvam settings:', err);
+    }
+}
+
+function updateSarvamKeyBadge(apiKey) {
+    const badge = document.getElementById('sarvamKeyStatusBadge');
+    if (!badge) return;
+    if (apiKey && apiKey.trim().length > 0) {
+        badge.textContent = '✓ Configured';
+        badge.className = 'status-badge configured';
+    } else {
+        badge.textContent = 'Key Required';
+        badge.className = 'status-badge';
+    }
+}
+
+function setupSarvamAndStudio() {
+    const sarvamKeyInput = document.getElementById('sarvamApiKey');
+    const sarvamDefaultLang = document.getElementById('sarvamDefaultTargetLang');
+    const sarvamModelSelect = document.getElementById('sarvamModelSelect');
+    const sarvamAutoToggle = document.getElementById('sarvamAutoTranslateToggle');
+    const appTargetLangSelect = document.getElementById('appTargetLangSelect');
+    const btnTestSarvamApi = document.getElementById('btnTestSarvamApi');
+    const sarvamTestResult = document.getElementById('sarvamTestResult');
+
+    // Studio controls
+    const originalInput = document.getElementById('originalTextInput');
+    const translatedOutput = document.getElementById('translatedTextOutput');
+    const btnStudioTranslate = document.getElementById('btnStudioTranslate');
+    const translateSpinner = document.getElementById('translateSpinner');
+    const translateBtnLabel = document.getElementById('translateBtnLabel');
+    const translatedBoxLabel = document.getElementById('translatedBoxLabel');
+    const btnUseLatestSpeech = document.getElementById('btnUseLatestSpeech');
+    const btnClearOriginal = document.getElementById('btnClearOriginal');
+    const btnCopyOriginal = document.getElementById('btnCopyOriginal');
+    const btnCopyTranslated = document.getElementById('btnCopyTranslated');
+    const btnTypeTranslated = document.getElementById('btnTypeTranslated');
+
+    // 1. Auto-save Sarvam API Key
+    const saveSarvamKey = async () => {
+        const key = sarvamKeyInput?.value.trim() || '';
+        try {
+            await window.electronAPI.setSarvamSettings({ apiKey: key });
+            updateSarvamKeyBadge(key);
+            showToast(key ? 'Sarvam API key saved' : 'Sarvam API key cleared');
+        } catch (e) {
+            console.error('Failed to save Sarvam key:', e);
+            showToast('Failed to save Sarvam key', 'error');
+        }
+    };
+
+    if (sarvamKeyInput) {
+        sarvamKeyInput.addEventListener('change', saveSarvamKey);
+        sarvamKeyInput.addEventListener('blur', saveSarvamKey);
+    }
+
+    // 2. Default Target Language change in Settings
+    if (sarvamDefaultLang) {
+        sarvamDefaultLang.addEventListener('change', async () => {
+            const lang = sarvamDefaultLang.value;
+            try {
+                await window.electronAPI.setSarvamSettings({ targetLang: lang });
+                if (appTargetLangSelect) appTargetLangSelect.value = lang;
+                const langName = sarvamDefaultLang.options[sarvamDefaultLang.selectedIndex]?.text || lang;
+                showToast(`Default target language set to ${langName}`);
+            } catch (e) {
+                console.error('Failed to save target language:', e);
+            }
+        });
+    }
+
+    // 3. Target Language change in App Studio
+    if (appTargetLangSelect) {
+        appTargetLangSelect.addEventListener('change', async () => {
+            const lang = appTargetLangSelect.value;
+            try {
+                await window.electronAPI.setSarvamSettings({ targetLang: lang });
+                if (sarvamDefaultLang) sarvamDefaultLang.value = lang;
+                const langName = appTargetLangSelect.options[appTargetLangSelect.selectedIndex]?.text || lang;
+                showToast(`Translation language: ${langName}`);
+            } catch (e) {
+                console.error('Failed to update language:', e);
+            }
+        });
+    }
+
+    // 4. Model change
+    if (sarvamModelSelect) {
+        sarvamModelSelect.addEventListener('change', async () => {
+            const model = sarvamModelSelect.value;
+            try {
+                await window.electronAPI.setSarvamSettings({ model });
+                showToast(`Sarvam model set to ${model}`);
+            } catch (e) {
+                console.error('Failed to update model:', e);
+            }
+        });
+    }
+
+    // 5. Auto-translate checkbox toggle
+    if (sarvamAutoToggle) {
+        sarvamAutoToggle.addEventListener('change', async () => {
+            const autoTranslate = sarvamAutoToggle.checked;
+            try {
+                await window.electronAPI.setSarvamSettings({ autoTranslate });
+                showToast(autoTranslate ? 'Auto-translation enabled during speech' : 'Auto-translation disabled');
+            } catch (e) {
+                console.error('Failed to update auto-translate:', e);
+            }
+        });
+    }
+
+    // 6. Test Sarvam AI API button
+    if (btnTestSarvamApi) {
+        btnTestSarvamApi.addEventListener('click', async () => {
+            const apiKey = sarvamKeyInput?.value.trim();
+            if (!apiKey) {
+                if (sarvamTestResult) {
+                    sarvamTestResult.textContent = '❌ Please enter an API key first';
+                    sarvamTestResult.style.color = '#ef4444';
+                }
+                showToast('Please enter an API key first', 'error');
+                return;
+            }
+
+            if (sarvamTestResult) {
+                sarvamTestResult.textContent = '⏳ Testing connection to Sarvam AI...';
+                sarvamTestResult.style.color = '#fb923c';
+            }
+
+            try {
+                const targetLang = sarvamDefaultLang?.value || 'hi-IN';
+                const res = await window.electronAPI.translateText({
+                    text: 'Hello! Antigravity Voice Assistant is connected to Sarvam AI.',
+                    targetLang
+                });
+
+                if (res && res.translatedText) {
+                    if (sarvamTestResult) {
+                        sarvamTestResult.textContent = `✓ Success: "${res.translatedText}"`;
+                        sarvamTestResult.style.color = '#22c55e';
+                    }
+                    updateSarvamKeyBadge(apiKey);
+                    showToast('Sarvam AI connected successfully!');
+                } else {
+                    const errMsg = res?.error || 'Translation returned empty response';
+                    if (sarvamTestResult) {
+                        sarvamTestResult.textContent = `❌ ${errMsg}`;
+                        sarvamTestResult.style.color = '#ef4444';
+                    }
+                    showToast(errMsg, 'error');
+                }
+            } catch (err) {
+                if (sarvamTestResult) {
+                    sarvamTestResult.textContent = `❌ ${err.message || 'API request failed'}`;
+                    sarvamTestResult.style.color = '#ef4444';
+                }
+                showToast(`Test failed: ${err.message}`, 'error');
+            }
+        });
+    }
+
+    // 7. Translation Studio: "Translate" button
+    if (btnStudioTranslate) {
+        btnStudioTranslate.addEventListener('click', async () => {
+            const text = originalInput?.value.trim();
+            if (!text) {
+                showToast('Please enter or dictate text to translate', 'error');
+                originalInput?.focus();
+                return;
+            }
+
+            const targetLang = appTargetLangSelect?.value || 'hi-IN';
+
+            // Loading state
+            btnStudioTranslate.disabled = true;
+            if (translateSpinner) translateSpinner.style.display = 'inline-block';
+            if (translateBtnLabel) translateBtnLabel.textContent = 'Translating...';
+
+            try {
+                const result = await window.electronAPI.translateText({
+                    text,
+                    targetLang
+                });
+
+                if (result && result.translatedText) {
+                    if (translatedOutput) {
+                        translatedOutput.value = result.translatedText;
+                    }
+                    if (translatedBoxLabel) {
+                        const langOpt = appTargetLangSelect?.options[appTargetLangSelect.selectedIndex]?.text || targetLang;
+                        translatedBoxLabel.textContent = `Translated: ${langOpt}`;
+                    }
+                    showToast('Translation completed!');
+                } else {
+                    const errMsg = result?.error || 'Translation returned empty result';
+                    showToast(`Translation failed: ${errMsg}`, 'error');
+                    if (translatedOutput) {
+                        translatedOutput.value = `[Error: ${errMsg}]`;
+                    }
+                }
+            } catch (err) {
+                console.error('Translation error:', err);
+                showToast(`Translation failed: ${err.message || 'Unknown error'}`, 'error');
+                if (translatedOutput) {
+                    translatedOutput.value = `[Error: ${err.message || 'Translation failed'}]`;
+                }
+            } finally {
+                btnStudioTranslate.disabled = false;
+                if (translateSpinner) translateSpinner.style.display = 'none';
+                if (translateBtnLabel) translateBtnLabel.textContent = '✨ Translate';
+            }
+        });
+    }
+
+    // 8. Translation Studio: "Use Latest Speech" button
+    if (btnUseLatestSpeech) {
+        btnUseLatestSpeech.addEventListener('click', async () => {
+            try {
+                const history = await window.electronAPI.getHistory();
+                if (history && history.length > 0 && history[0].text) {
+                    if (originalInput) originalInput.value = history[0].text;
+                    showToast('Inserted latest recorded speech');
+                } else {
+                    showToast('No speech history found yet', 'error');
+                }
+            } catch (err) {
+                console.error('Failed to get history:', err);
+            }
+        });
+    }
+
+    // 9. Clear Original Input
+    if (btnClearOriginal) {
+        btnClearOriginal.addEventListener('click', () => {
+            if (originalInput) originalInput.value = '';
+            showToast('Original text cleared');
+        });
+    }
+
+    // 10. Copy Original text
+    if (btnCopyOriginal) {
+        btnCopyOriginal.addEventListener('click', async () => {
+            const text = originalInput?.value;
+            if (!text) {
+                showToast('Nothing to copy', 'error');
+                return;
+            }
+            try {
+                await navigator.clipboard.writeText(text);
+                showToast('Original text copied to clipboard!');
+            } catch (e) {
+                showToast('Failed to copy', 'error');
+            }
+        });
+    }
+
+    // 11. Copy Translated text
+    if (btnCopyTranslated) {
+        btnCopyTranslated.addEventListener('click', async () => {
+            const text = translatedOutput?.value;
+            if (!text) {
+                showToast('No translated text to copy', 'error');
+                return;
+            }
+            try {
+                await navigator.clipboard.writeText(text);
+                showToast('Translated text copied to clipboard!');
+            } catch (e) {
+                showToast('Failed to copy', 'error');
+            }
+        });
+    }
+
+    // 12. Type at Cursor
+    if (btnTypeTranslated) {
+        btnTypeTranslated.addEventListener('click', async () => {
+            const text = translatedOutput?.value?.trim();
+            if (!text || text.startsWith('[Error:')) {
+                showToast('Please translate text first before typing at cursor', 'error');
+                return;
+            }
+            try {
+                showToast('Typing translated text at cursor...');
+                await window.electronAPI.typeAtCursor(text);
+            } catch (err) {
+                console.error('Error typing at cursor:', err);
+                showToast('Failed to type at cursor', 'error');
+            }
+        });
+    }
+
+    // 13. Auto-update Translation Studio when live dictation finishes with translation
+    if (window.electronAPI.onTranslationComplete) {
+        window.electronAPI.onTranslationComplete((data) => {
+            if (data && data.original) {
+                if (originalInput) originalInput.value = data.original;
+            }
+            if (data && data.translated) {
+                if (translatedOutput) translatedOutput.value = data.translated;
+                if (translatedBoxLabel) {
+                    translatedBoxLabel.textContent = `Translated: ${data.targetLang || 'Sarvam AI'}`;
+                }
+            }
+        });
+    }
 }
 
 // ─── Initialize ──────────────────────────────────────────────────────────────
@@ -882,6 +1347,15 @@ document.addEventListener('DOMContentLoaded', () => {
     setupModelActions();
     setupClearHistory();
     setupHotkeyCapture();
+    setupModeSelection();
+    setupSarvamAndStudio();
+
+    // Live hotkey sync from main process
+    if (window.electronAPI.onHotkeyChanged) {
+        window.electronAPI.onHotkeyChanged((newHotkey) => {
+            applyHotkeyToUI(newHotkey);
+        });
+    }
 
     // Live history update
     if (window.electronAPI.onHistoryUpdated) {
@@ -918,10 +1392,11 @@ document.addEventListener('DOMContentLoaded', () => {
         micSelect.addEventListener('change', async () => {
             try {
                 await window.electronAPI.setMicrophone(micSelect.value);
+                const selectedText = micSelect.selectedIndex >= 0 ? micSelect.options[micSelect.selectedIndex].text : 'Default Microphone';
                 const dashMic = document.getElementById('dashMicName');
-                if (dashMic && micSelect.selectedIndex >= 0) {
-                    dashMic.textContent = micSelect.options[micSelect.selectedIndex].text;
-                }
+                if (dashMic) dashMic.textContent = selectedText;
+                const currentMicDisplay = document.getElementById('currentMicDisplay');
+                if (currentMicDisplay) currentMicDisplay.textContent = selectedText;
                 showToast('Changes saved');
             } catch (e) {
                 console.error('Error saving microphone:', e);

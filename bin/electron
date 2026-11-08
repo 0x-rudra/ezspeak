@@ -1,0 +1,14 @@
+#!/bin/bash
+ELECTRON_DIR="$(dirname "$0")/../node_modules/.pnpm/electron@27.3.11_supports-color@7.2.0/node_modules/electron/dist"
+if [ ! -f "$ELECTRON_DIR/electron" ]; then
+  ELECTRON_BIN=$(find "$(dirname "$0")/../node_modules" -name electron -type f -perm /111 2>/dev/null | grep -v "\.bin" | head -n 1)
+else
+  ELECTRON_BIN="$ELECTRON_DIR/electron"
+fi
+
+EXTRA_FLAGS=()
+if [ -n "$WAYLAND_DISPLAY" ]; then
+  EXTRA_FLAGS+=("--enable-features=UseOzonePlatform" "--ozone-platform=wayland")
+fi
+
+exec "$ELECTRON_BIN" "${EXTRA_FLAGS[@]}" "$@"

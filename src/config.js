@@ -1,10 +1,9 @@
 const Store = require('electron-store');
-const os = require('os');
 
 const HISTORY_MAX = 50;
 
 const store = new Store({
-  name: 'ezspeak-config',
+  name: 'listner-config',
   defaults: {
     // Mode: 'cloud' (formerly 'online') or 'offline'
     transcriptionMode: 'cloud',
@@ -33,10 +32,18 @@ const store = new Store({
     localModelPath: '',
     importedModels: [], // array of { id, name, filename, path, sizeMB, importedAt }
 
+    // Sarvam AI Translation settings
+    sarvamApiKey: '',
+    sarvamSourceLang: 'en-IN',
+    sarvamTargetLang: 'hi-IN',
+    sarvamModel: 'mayura:v1',
+    autoTranslate: false,
+
     // App & Audio Settings
     mode: 'toggle', // 'toggle' or 'hold'
     microphoneDeviceId: 'default',
-    hotkey: 'Ctrl+Space',
+    hotkey: 'Ctrl+Alt+Space',
+    indicatorPosition: null,
     sampleRate: 16000,
     channels: 1,
     bitDepth: 16,
@@ -48,7 +55,6 @@ class Config {
   // ─── Mode & Provider ───────────────────────────────────────────
   static getTranscriptionMode() {
     const mode = store.get('transcriptionMode', 'cloud');
-    // Map legacy 'online' to 'cloud'
     return mode === 'online' ? 'cloud' : mode;
   }
 
@@ -229,14 +235,30 @@ class Config {
 
   static getHotkey() {
     const hk = store.get('hotkey');
-    if (!hk || hk === 'CtrlRight' || hk === 'MetaRight') {
-      return 'Ctrl+Space';
+    if (!hk || hk === 'CtrlRight' || hk === 'MetaRight' || hk === 'Ctrl+Space') {
+      return 'Ctrl+Alt+Space';
     }
     return hk;
   }
 
   static setHotkey(hotkey) {
-    store.set('hotkey', hotkey);
+    if (hotkey) {
+      store.set('hotkey', hotkey);
+    } else {
+      store.delete('hotkey');
+    }
+  }
+
+  static getIndicatorPosition() {
+    return store.get('indicatorPosition', null);
+  }
+
+  static setIndicatorPosition(pos) {
+    if (pos && typeof pos.x === 'number' && typeof pos.y === 'number') {
+      store.set('indicatorPosition', { x: Math.round(pos.x), y: Math.round(pos.y) });
+    } else {
+      store.delete('indicatorPosition');
+    }
   }
 
   static getAudioSettings() {
@@ -263,6 +285,66 @@ class Config {
       return this.getCustomEndpoint().length > 0;
     }
     return false;
+  }
+
+  // ─── Sarvam AI Translation ─────────────────────────────────────
+  static getSarvamApiKey() {
+    return store.get('sarvamApiKey', '');
+  }
+
+  static setSarvamApiKey(key) {
+    store.set('sarvamApiKey', key ? key.trim() : '');
+  }
+
+  static getSarvamSourceLang() {
+    return store.get('sarvamSourceLang', 'en-IN');
+  }
+
+  static setSarvamSourceLang(lang) {
+    store.set('sarvamSourceLang', lang || 'en-IN');
+  }
+
+  static getSarvamTargetLang() {
+    return store.get('sarvamTargetLang', 'hi-IN');
+  }
+
+  static setSarvamTargetLang(lang) {
+    store.set('sarvamTargetLang', lang || 'hi-IN');
+  }
+
+  static getSarvamModel() {
+    return store.get('sarvamModel', 'mayura:v1');
+  }
+
+  static setSarvamModel(model) {
+    store.set('sarvamModel', model || 'mayura:v1');
+  }
+
+  static getAutoTranslate() {
+    return store.get('autoTranslate', false);
+  }
+
+  static setAutoTranslate(enabled) {
+    store.set('autoTranslate', Boolean(enabled));
+  }
+
+  static getSarvamSettings() {
+    return {
+      apiKey: this.getSarvamApiKey(),
+      sourceLang: this.getSarvamSourceLang(),
+      targetLang: this.getSarvamTargetLang(),
+      model: this.getSarvamModel(),
+      autoTranslate: this.getAutoTranslate()
+    };
+  }
+
+  static setSarvamSettings(settings) {
+    if (!settings) return;
+    if (settings.apiKey !== undefined) this.setSarvamApiKey(settings.apiKey);
+    if (settings.sourceLang !== undefined) this.setSarvamSourceLang(settings.sourceLang);
+    if (settings.targetLang !== undefined) this.setSarvamTargetLang(settings.targetLang);
+    if (settings.model !== undefined) this.setSarvamModel(settings.model);
+    if (settings.autoTranslate !== undefined) this.setAutoTranslate(settings.autoTranslate);
   }
 
   // ─── Transcription history ───────────────────────────────────────
