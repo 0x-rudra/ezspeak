@@ -310,14 +310,26 @@ class LocalTranscriptionService {
   }
 
   /**
-   * Delete an installed local model
+   * Delete an installed local model safely (with path traversal guard)
    */
   deleteModel(modelPath) {
-    if (fs.existsSync(modelPath)) {
-      fs.unlinkSync(modelPath);
+    if (!modelPath || typeof modelPath !== 'string') {
+      throw new Error('Invalid model path');
     }
-    Config.removeImportedModel(modelPath);
-    Logger.log(`Deleted model at: ${modelPath}`);
+    const resolvedTarget = path.resolve(modelPath);
+    const resolvedModelsDir = path.resolve(this.modelsDir);
+
+    // Guard against path traversal: ensure target is strictly inside models directory
+    if (!resolvedTarget.startsWith(resolvedModelsDir + path.sep) && resolvedTarget !== resolvedModelsDir) {
+      Logger.error(`Security alert: Attempted model deletion outside models folder: ${modelPath}`);
+      throw new Error('Access denied: Cannot delete files outside the models directory');
+    }
+
+    if (fs.existsSync(resolvedTarget)) {
+      fs.unlinkSync(resolvedTarget);
+    }
+    Config.removeImportedModel(resolvedTarget);
+    Logger.log(`Deleted model at: ${resolvedTarget}`);
     return true;
   }
 

@@ -160,6 +160,41 @@ try {
   assert(false, `Transcription correctness test error: ${e.message}`);
 }
 
+// 8. Security Hardening Tests
+console.log('\n[Test Suite 8: Security Hardening]');
+try {
+  // Test Model Deletion Path Traversal Guard
+  const LocalTranscriptionService = require('../src/localTranscription');
+  const localService = new LocalTranscriptionService();
+  let caughtTraversal = false;
+  try {
+    localService.deleteModel('../../../etc/passwd');
+  } catch (err) {
+    caughtTraversal = true;
+  }
+  assert(caughtTraversal, 'deleteModel rejects path traversal attempts outside models directory');
+
+  // Test LocalServer cross-origin blocking
+  const LocalServer = require('../src/localServer');
+  const srv = new LocalServer({ port: 49199 });
+  let blockedOrigin = false;
+  const mockReq = {
+    url: '/toggle',
+    headers: { origin: 'http://malicious-website.com' }
+  };
+  const mockRes = {
+    writeHead: (status) => {
+      if (status === 403) blockedOrigin = true;
+    },
+    setHeader: () => {},
+    end: () => {}
+  };
+  srv.handleRequest(mockReq, mockRes);
+  assert(blockedOrigin, 'LocalServer blocks requests with browser Origin header (403 Forbidden)');
+} catch (e) {
+  assert(false, `Security test error: ${e.message}`);
+}
+
 console.log('\n====================================');
 console.log(`Test Results: ${passed} passed, ${failed} failed`);
 console.log('====================================');

@@ -70,9 +70,16 @@ class Logger {
   }
 
   static transcription(message, ...args) {
-    const logMsg = `[${new Date().toLocaleTimeString()}] [TRANSCRIPT] ${message} ${args.length > 0 ? JSON.stringify(args) : ''}`;
-    console.log(logMsg);
-    this.writeToFile(logMsg);
+    // Redact raw transcript text from disk logs to protect user privacy
+    const textLen = (typeof message === 'string' ? message.length : 0) + (args[0] ? String(args[0]).length : 0);
+    const diskMsg = `[${new Date().toLocaleTimeString()}] [TRANSCRIPT] [REDACTED: ${textLen} chars transcribed]`;
+    this.writeToFile(diskMsg);
+
+    // Only log text to stdout in dev/debug mode
+    if (process.env.DEBUG || process.argv.includes('--debug') || process.argv.includes('--dev')) {
+      const devMsg = `[${new Date().toLocaleTimeString()}] [TRANSCRIPT] ${message} ${args.length > 0 ? JSON.stringify(args) : ''}`;
+      console.log(devMsg);
+    }
   }
 }
 

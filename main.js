@@ -139,7 +139,8 @@ function createTray() {
 }
 
 function updateTrayMenu() {
-  const contextMenu = Menu.buildFromTemplate([
+  const isDev = Boolean(process.env.NODE_ENV === 'development' || process.argv.includes('--dev') || (app && !app.isPackaged));
+  const menuItems = [
     {
       label: `Status: ${recordingStatus === 'recording' ? 'Recording...' : recordingStatus === 'processing' ? 'Processing...' : 'Ready'}`,
       enabled: false
@@ -162,15 +163,21 @@ function updateTrayMenu() {
       click: () => {
         showMainWindow('history');
       }
-    },
-    {
+    }
+  ];
+
+  if (isDev) {
+    menuItems.push({
       label: 'Open DevTools',
       click: () => {
         if (settingsWindow && !settingsWindow.isDestroyed()) {
           settingsWindow.webContents.openDevTools();
         }
       }
-    },
+    });
+  }
+
+  menuItems.push(
     { type: 'separator' },
     {
       label: 'Quit',
@@ -179,7 +186,9 @@ function updateTrayMenu() {
         app.quit();
       }
     }
-  ]);
+  );
+
+  const contextMenu = Menu.buildFromTemplate(menuItems);
 
   tray.setContextMenu(contextMenu);
   tray.setToolTip('Listner - Voice to Text');

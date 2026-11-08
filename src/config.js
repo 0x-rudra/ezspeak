@@ -51,6 +51,33 @@ const store = new Store({
   }
 });
 
+function encryptSecret(plaintext) {
+  if (!plaintext || typeof plaintext !== 'string') return '';
+  const trimmed = plaintext.trim();
+  if (!trimmed) return '';
+  try {
+    const { safeStorage } = require('electron');
+    if (safeStorage && typeof safeStorage.isEncryptionAvailable === 'function' && safeStorage.isEncryptionAvailable()) {
+      return 'enc:' + safeStorage.encryptString(trimmed).toString('base64');
+    }
+  } catch (e) {}
+  return trimmed;
+}
+
+function decryptSecret(storedValue) {
+  if (!storedValue || typeof storedValue !== 'string') return '';
+  if (storedValue.startsWith('enc:')) {
+    try {
+      const { safeStorage } = require('electron');
+      if (safeStorage && typeof safeStorage.isEncryptionAvailable === 'function' && safeStorage.isEncryptionAvailable()) {
+        const buf = Buffer.from(storedValue.slice(4), 'base64');
+        return safeStorage.decryptString(buf);
+      }
+    } catch (e) {}
+  }
+  return storedValue;
+}
+
 class Config {
   // ─── Mode & Provider ───────────────────────────────────────────
   static getTranscriptionMode() {
@@ -76,12 +103,13 @@ class Config {
 
   // ─── Cloud BYOK Provider Settings ──────────────────────────────
   static getOpenAIApiKey() {
-    return store.get('openaiApiKey', '') || store.get('apiKey', '');
+    return decryptSecret(store.get('openaiApiKey', '') || store.get('apiKey', ''));
   }
 
   static setOpenAIApiKey(key) {
-    store.set('openaiApiKey', key);
-    store.set('apiKey', key); // Sync legacy key
+    const enc = encryptSecret(key);
+    store.set('openaiApiKey', enc);
+    store.set('apiKey', enc); // Sync legacy key
   }
 
   static getOpenAIModel() {
@@ -93,11 +121,11 @@ class Config {
   }
 
   static getGroqApiKey() {
-    return store.get('groqApiKey', '');
+    return decryptSecret(store.get('groqApiKey', ''));
   }
 
   static setGroqApiKey(key) {
-    store.set('groqApiKey', key);
+    store.set('groqApiKey', encryptSecret(key));
   }
 
   static getGroqModel() {
@@ -117,11 +145,11 @@ class Config {
   }
 
   static getCustomApiKey() {
-    return store.get('customApiKey', '');
+    return decryptSecret(store.get('customApiKey', ''));
   }
 
   static setCustomApiKey(key) {
-    store.set('customApiKey', key);
+    store.set('customApiKey', encryptSecret(key));
   }
 
   static getCustomModel() {
@@ -289,11 +317,11 @@ class Config {
 
   // ─── Sarvam AI Translation ─────────────────────────────────────
   static getSarvamApiKey() {
-    return store.get('sarvamApiKey', '');
+    return decryptSecret(store.get('sarvamApiKey', ''));
   }
 
   static setSarvamApiKey(key) {
-    store.set('sarvamApiKey', key ? key.trim() : '');
+    store.set('sarvamApiKey', encryptSecret(key));
   }
 
   static getSarvamSourceLang() {
