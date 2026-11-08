@@ -3,6 +3,7 @@ if (app) {
   app.name = 'listner';
 }
 const path = require('path');
+const crypto = require('crypto');
 const HotkeyManager = require('./src/hotkeyManager');
 const AudioRecorder = require('./src/audioRecorder');
 const TranscriptionService = require('./src/transcription');
@@ -296,37 +297,53 @@ async function initializeServices() {
   localServer.start();
 }
 
-function cleanWhisperOutput(text) {
+function cleanWhisperOutput(text, isAudioSilent = false) {
   if (!text) return '';
   let str = String(text).trim();
-  str = str.replace(/\[.*?\]/g, '').replace(/\(.*?\)/g, '').trim();
+
+  // Strip only known Whisper non-speech tags, leaving user brackets like [index] or (example) intact
+  str = str.replace(/\[(MUSIC|APPLAUSE|LAUGHTER|BLANK_AUDIO|NOISE|BELL|COUGH|THUNDER|SNORT)\]/gi, '').trim();
+
+  // Known subtitle hallucination lines
   const hallucinations = [
-    'thank you', 'thank you.', 'thanks for watching', 'thanks for watching!',
-    'subtitles by', 'subscribe', 'you', '.', '...', 'bye'
+    'thanks for watching', 'thanks for watching!', 'thanks for watching.',
+    'thank you for watching', 'thank you for watching.',
+    'subtitles by', 'subscribe to the channel', 'please subscribe'
   ];
-  if (hallucinations.includes(str.toLowerCase())) {
+  const normalized = str.toLowerCase().replace(/[\.\?!,]/g, '').trim();
+  if (hallucinations.includes(normalized)) {
     return '';
   }
+
+  // Only drop "thank you" or "bye" if silence/VAD detected no speech
+  if (isAudioSilent && (normalized === 'thank you' || normalized === 'bye' || normalized === 'you')) {
+    return '';
+  }
+
+  // Drop bare punctuation hallucinations
+  if (/^[\.\,\s\-_~]+$/.test(str)) {
+    return '';
+  }
+
   return str;
 }
 
 /**
  * Detect voice stop commands (e.g. "stop listening", "stop recording", "turn off")
- * and strip them from the speech text
+ * and strip them only if spoken as a standalone phrase
  */
 function detectAndCleanVoiceCommands(text) {
   if (!text) return { text: '', shouldStop: false };
   let cleaned = cleanWhisperOutput(text);
 
-  const stopRegex = /\b(stop\s+listening|stop\s+dictation|stop\s+recording|turn\s+off\s+listening|turn\s+off|please\s+stop\s+listening)\b[\.\?!]?/i;
-  let shouldStop = false;
+  // Match stop commands as a standalone phrase/sentence only, NOT in the middle of arbitrary dictation
+  const standaloneStopRegex = /^\s*(stop\s+listening|stop\s+dictation|stop\s+recording|turn\s+off\s+listening|turn\s+off|please\s+stop\s+listening)\b[\.\?!]?\s*$/i;
 
-  if (stopRegex.test(cleaned)) {
-    shouldStop = true;
-    cleaned = cleaned.replace(stopRegex, '').trim();
+  if (standaloneStopRegex.test(cleaned)) {
+    return { text: '', shouldStop: true };
   }
 
-  return { text: cleaned, shouldStop };
+  return { text: cleaned, shouldStop: false };
 }
 
 async function handleRecordStart() {
@@ -481,7 +498,7 @@ ipcMain.on('live-audio-slice', async (event, bufferArray) => {
     if (!require('fs').existsSync(tempDir)) {
       require('fs').mkdirSync(tempDir, { recursive: true });
     }
-    const slicePath = path.join(tempDir, `slice_${Date.now()}.webm`);
+    const slicePath = path.join(tempDir, `slice_${crypto.randomUUID()}.webm`);
     require('fs').writeFileSync(slicePath, Buffer.from(bufferArray));
 
     // Transcribe speech so far

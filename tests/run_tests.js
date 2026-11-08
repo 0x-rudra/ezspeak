@@ -118,6 +118,48 @@ try {
   assert(false, `Metadata error: ${e.message}`);
 }
 
+// 7. Transcription correctness & Voice commands
+console.log('\n[Test Suite 7: Transcription Correctness & Voice Commands]');
+try {
+  const mainCode = fs.readFileSync(path.join(__dirname, '../main.js'), 'utf8');
+  const cleanWhisperMatch = mainCode.match(/function cleanWhisperOutput\([\s\S]*?\n\}/);
+  const detectCommandsMatch = mainCode.match(/function detectAndCleanVoiceCommands\([\s\S]*?\n\}/);
+
+  const sandboxContext = {};
+  vm.createContext(sandboxContext);
+  vm.runInContext(cleanWhisperMatch[0], sandboxContext);
+  vm.runInContext(detectCommandsMatch[0], sandboxContext);
+
+  const clean = sandboxContext.cleanWhisperOutput;
+  const detect = sandboxContext.detectAndCleanVoiceCommands;
+
+  // Brackets preservation
+  assert(clean('Array index [0] and (arg1)') === 'Array index [0] and (arg1)', 'Preserves brackets [ ] and ( )');
+  assert(clean('[MUSIC] actual speech [APPLAUSE]') === 'actual speech', 'Strips known [MUSIC] and [APPLAUSE] tags');
+
+  // Thank you preservation
+  assert(clean('thank you', false) === 'thank you', 'Preserves "thank you" when audio is not silent');
+  assert(clean('thank you', true) === '', 'Drops "thank you" when audio is silent');
+
+  // Voice commands standalone vs embedded
+  const embedded = detect('please turn off the lights before leaving');
+  assert(!embedded.shouldStop && embedded.text.includes('turn off'), 'Keeps "turn off" when embedded inside a sentence');
+
+  const standalone1 = detect('turn off');
+  assert(standalone1.shouldStop && standalone1.text === '', 'Triggers stop command on standalone "turn off"');
+
+  const standalone2 = detect('stop listening.');
+  assert(standalone2.shouldStop && standalone2.text === '', 'Triggers stop command on standalone "stop listening."');
+
+  // UUID verification
+  const crypto = require('crypto');
+  const uuid = crypto.randomUUID();
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  assert(uuidRegex.test(uuid), 'crypto.randomUUID() generates valid UUID format');
+} catch (e) {
+  assert(false, `Transcription correctness test error: ${e.message}`);
+}
+
 console.log('\n====================================');
 console.log(`Test Results: ${passed} passed, ${failed} failed`);
 console.log('====================================');

@@ -2,6 +2,7 @@ const axios = require('axios');
 const FormData = require('form-data');
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 const Config = require('./config');
 const Logger = require('./logger');
 const LocalTranscriptionService = require('./localTranscription');
@@ -152,14 +153,8 @@ class TranscriptionService {
 
       return transcribedText;
     } catch (error) {
-      // Clean up audio file on error
-      try {
-        if (fs.existsSync(audioFilePath)) {
-          fs.unlinkSync(audioFilePath);
-        }
-      } catch (cleanupError) {
-        console.error('Error deleting temp audio file:', cleanupError);
-      }
+      // Retain audio file on cloud error so user audio is not permanently lost
+      Logger.warn(`Cloud transcription error. Retaining audio file at: ${audioFilePath}`);
 
       if (error.response) {
         const status = error.response.status;
@@ -200,7 +195,7 @@ class TranscriptionService {
     if (!fs.existsSync(tempDir)) {
       fs.mkdirSync(tempDir, { recursive: true });
     }
-    const tempFilePath = path.join(tempDir, `audio_${Date.now()}.wav`);
+    const tempFilePath = path.join(tempDir, `audio_${crypto.randomUUID()}.wav`);
     fs.writeFileSync(tempFilePath, audioBuffer);
     return await this.transcribe(tempFilePath);
   }

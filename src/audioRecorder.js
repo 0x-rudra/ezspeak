@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
+const crypto = require('crypto');
 const { ipcMain } = require('electron');
 const Logger = require('./logger');
 
@@ -100,7 +101,7 @@ class AudioRecorder {
       fs.mkdirSync(tempDir, { recursive: true });
     }
 
-    this.tempFilePath = path.join(tempDir, `recording_${Date.now()}.webm`);
+    this.tempFilePath = path.join(tempDir, `recording_${crypto.randomUUID()}.webm`);
     this.isRecording = true;
     this.recordingStartTime = Date.now(); // Track when recording started
     Logger.log('Temp file path:', this.tempFilePath);
