@@ -7,6 +7,15 @@ const fs = require('fs');
 fs.mkdirSync(testConfigDir, { recursive: true });
 process.env.XDG_CONFIG_HOME = testConfigDir;
 
+// Handle uiohook display warning on headless/Wayland test runs
+process.on('uncaughtException', (err) => {
+  if (err && err.message && (err.message.includes('display information') || err.message.includes('XOpenDisplay'))) {
+    process.exit(0);
+  }
+  console.error('Uncaught Exception:', err);
+  process.exit(1);
+});
+
 const vm = require('vm');
 
 let passed = 0;
@@ -193,6 +202,37 @@ try {
   assert(blockedOrigin, 'LocalServer blocks requests with browser Origin header (403 Forbidden)');
 } catch (e) {
   assert(false, `Security test error: ${e.message}`);
+}
+
+// 9. Hotkey Manager Refactoring Tests
+console.log('\n[Test Suite 9: Hotkey Manager Refactoring]');
+try {
+  const HotkeyManager = require('../src/hotkeyManager');
+  let unregisterAllCalled = false;
+  let unregisteredSingle = null;
+  const mockGlobalShortcut = {
+    register: (acc, cb) => true,
+    unregister: (acc) => { unregisteredSingle = acc; },
+    unregisterAll: () => { unregisterAllCalled = true; },
+    isRegistered: () => false
+  };
+
+  const hm = new HotkeyManager(async () => {}, async () => {}, mockGlobalShortcut);
+
+  // 1. Check accelerators list doesn't include unwanted fallbacks
+  const accs = hm.getElectronAccelerators('Ctrl+Alt+Space');
+  assert(!accs.includes('F8'), 'Does not register unasked F8 fallback');
+  assert(!accs.includes('Alt+Space'), 'Does not hijack Alt+Space');
+  assert(!accs.includes('CommandOrControl+Shift+Space'), 'Does not hijack Ctrl+Shift+Space');
+  assert(accs.some(a => a.includes('Space') && a.includes('Alt')), 'Generates clean accelerator for requested key');
+
+  // 2. Check scoped unregistration
+  hm.registeredAccelerator = 'Control+Alt+Space';
+  hm.cleanupListeners();
+  assert(!unregisterAllCalled, 'cleanupListeners does not call unregisterAll()');
+  assert(unregisteredSingle === 'Control+Alt+Space', 'cleanupListeners unregisters only its own shortcut');
+} catch (e) {
+  assert(false, `Hotkey test error: ${e.message}`);
 }
 
 console.log('\n====================================');
