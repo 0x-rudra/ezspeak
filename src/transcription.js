@@ -7,6 +7,25 @@ const Config = require('./config');
 const Logger = require('./logger');
 const LocalTranscriptionService = require('./localTranscription');
 
+async function postWithRetry(url, data, config, maxRetries = 3) {
+  let attempt = 0;
+  while (attempt < maxRetries) {
+    try {
+      return await axios.post(url, data, config);
+    } catch (err) {
+      attempt++;
+      const status = err.response ? err.response.status : null;
+      const isRetryable = status === 429 || (status >= 500 && status <= 599) || err.code === 'ECONNABORTED' || err.code === 'ETIMEDOUT';
+      if (!isRetryable || attempt >= maxRetries) {
+        throw err;
+      }
+      const backoffMs = Math.min(1000 * Math.pow(2, attempt - 1), 8000);
+      Logger.warn(`[Transcription] Call returned ${status || err.code}. Retrying attempt ${attempt}/${maxRetries} after ${backoffMs}ms...`);
+      await new Promise(r => setTimeout(r, backoffMs));
+    }
+  }
+}
+
 class TranscriptionService {
   constructor() {
     this.localService = new LocalTranscriptionService();
@@ -92,6 +111,16 @@ class TranscriptionService {
     }
 
     const stats = fs.statSync(audioFilePath);
+    const MAX_AUDIO_BYTES = 25 * 1024 * 1024; // 25 MB OpenAI limit
+    if (stats.size > MAX_AUDIO_BYTES) {
+      Logger.error(`Audio file too large: ${(stats.size / (1024 * 1024)).toFixed(1)}MB exceeds 25MB limit`);
+      throw new Error(`Audio file exceeds 25MB limit (${(stats.size / (1024 * 1024)).toFixed(1)}MB). Please dictate in shorter segments.`);
+    }
+
+    if (provider === 'custom' && apiUrl.startsWith('http://') && !apiUrl.includes('localhost') && !apiUrl.includes('127.0.0.1')) {
+      Logger.warn(`[Security Warning] Custom endpoint uses unencrypted HTTP with an API key: ${apiUrl}`);
+    }
+
     Logger.log(`Audio file: ${path.basename(audioFilePath)}, Size: ${(stats.size / 1024).toFixed(2)} KB`);
     Logger.log(`Target: ${providerDisplayName} (${modelName}) at ${apiUrl}`);
 
@@ -121,9 +150,9 @@ class TranscriptionService {
       }
 
       Logger.log(`Sending request to ${providerDisplayName}...`);
-      const response = await axios.post(apiUrl, formData, {
+      const response = await postWithRetry(apiUrl, formData, {
         headers,
-        timeout: 35000 // 35 second timeout
+        timeout: 60000 // 60 second timeout with exponential backoff retry
       });
 
       Logger.success(`Received response from ${providerDisplayName}`);
