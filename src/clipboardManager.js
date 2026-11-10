@@ -154,13 +154,6 @@ class ClipboardManager {
       return false;
     }
   }
-
-  /**
-   * Copy text to clipboard without pasting
-   */
-  static copy(text) {
-    this.syncClipboard(text);
-  }
 }
 
 module.exports = ClipboardManager;

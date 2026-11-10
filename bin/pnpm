@@ -1,0 +1,15 @@
+#!/bin/bash
+BIN_DIR="$(cd "$(dirname "$0")" && pwd)"
+export PATH="$BIN_DIR:$PATH"
+export ELECTRON_RUN_AS_NODE=""
+unset ELECTRON_RUN_AS_NODE
+
+if [ "$1" = "start" ]; then
+  shift
+  exec "$BIN_DIR/electron" . "$@"
+elif [ "$1" = "test" ]; then
+  shift
+  exec "$BIN_DIR/node" "$BIN_DIR/../tests/run_tests.js" "$@"
+else
+  exec "$BIN_DIR/node" "$@"
+fi

@@ -13,9 +13,11 @@ const Logger = require('./src/logger');
 const LocalServer = require('./src/localServer');
 const TranslationService = require('./src/translationService');
 
-// Disable GPU to prevent flashing and GPU errors
-app.commandLine.appendSwitch('disable-gpu');
-app.commandLine.appendSwitch('disable-software-rasterizer');
+// GPU acceleration enabled by default; optional flag for environments with buggy GPU drivers
+if (process.argv.includes('--disable-gpu') || process.env.LISTNER_DISABLE_GPU === '1') {
+  app.commandLine.appendSwitch('disable-gpu');
+  app.commandLine.appendSwitch('disable-software-rasterizer');
+}
 
 let mainWindow = null;
 let settingsWindow = null;

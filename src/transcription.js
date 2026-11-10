@@ -213,21 +213,6 @@ class TranscriptionService {
     }
   }
 
-  // Legacy method
-  async transcribeOnline(audioFilePath) {
-    return await this.transcribeCloudBYOK(audioFilePath);
-  }
-
-  async transcribeBuffer(audioBuffer) {
-    const os = require('os');
-    const tempDir = path.join(os.tmpdir(), 'listner');
-    if (!fs.existsSync(tempDir)) {
-      fs.mkdirSync(tempDir, { recursive: true });
-    }
-    const tempFilePath = path.join(tempDir, `audio_${crypto.randomUUID()}.wav`);
-    fs.writeFileSync(tempFilePath, audioBuffer);
-    return await this.transcribe(tempFilePath);
-  }
 }
 
 module.exports = TranscriptionService;
