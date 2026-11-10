@@ -31,6 +31,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('download-progress', (event, progress) => callback(progress));
   },
 
+  // Background Audio Capture Worker
+  sendAudioChunk: (chunk) => ipcRenderer.send('audio-chunk', chunk),
+  sendAudioStatus: (status, error) => ipcRenderer.send('audio-status', { status, error }),
+  onStartCapture: (callback) => ipcRenderer.on('start-capture', (event, deviceId) => callback(event, deviceId)),
+  onStopCapture: (callback) => ipcRenderer.on('stop-capture', () => callback()),
+
   // History
   getHistory: () => ipcRenderer.invoke('get-history'),
   clearHistory: () => ipcRenderer.invoke('clear-history'),

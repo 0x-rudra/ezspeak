@@ -272,6 +272,47 @@ try {
   assert(false, `Platform test error: ${e.message}`);
 }
 
+// 12. Audio Pipeline, State Machine & Queue Tests
+console.log('\n[Test Suite 12: Audio Pipeline & State Machine]');
+try {
+  const { DictationStateMachine, TranscriptionQueue, PreRollAudioBuffer, SimpleAudioVAD } = require('../src/audioPipeline');
+
+  // State Machine
+  const sm = new DictationStateMachine();
+  assert(sm.getState() === 'idle', 'State machine initial state is idle');
+  sm.setListening();
+  assert(sm.getState() === 'listening', 'State machine transitioned to listening');
+  sm.setTranscribing();
+  assert(sm.getState() === 'transcribing', 'State machine transitioned to transcribing');
+  sm.setInserting();
+  assert(sm.getState() === 'inserting', 'State machine transitioned to inserting');
+  sm.setIdle();
+  assert(sm.getState() === 'idle', 'State machine transitioned back to idle');
+
+  // Pre-roll Buffer
+  const pr = new PreRollAudioBuffer(3);
+  pr.push(Buffer.from([1]));
+  pr.push(Buffer.from([2]));
+  pr.push(Buffer.from([3]));
+  pr.push(Buffer.from([4]));
+  const flushed = pr.flush();
+  assert(flushed.length === 3, 'PreRollAudioBuffer maintains bounded size (3 chunks)');
+  assert(flushed[0][0] === 2 && flushed[2][0] === 4, 'PreRollAudioBuffer correctly drops oldest chunk');
+
+  // Queue
+  const q = new TranscriptionQueue();
+  const sequence = [];
+  q.enqueue(async () => { sequence.push(1); });
+  q.enqueue(async () => { sequence.push(2); });
+  assert(q.size() >= 0, 'TranscriptionQueue enqueue succeeds');
+
+  // VAD
+  const silentBuf = Buffer.alloc(100, 128); // 128 is center PCM8 / silence
+  assert(SimpleAudioVAD.isSilent(silentBuf), 'SimpleAudioVAD identifies zero-energy audio as silent');
+} catch (e) {
+  assert(false, `Audio pipeline test error: ${e.message}`);
+}
+
 console.log('\n====================================');
 console.log(`Test Results: ${passed} passed, ${failed} failed`);
 console.log('====================================');

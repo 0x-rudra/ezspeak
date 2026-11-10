@@ -20,6 +20,12 @@ if (process.argv.includes('--disable-gpu') || process.env.LISTNER_DISABLE_GPU ==
 }
 
 const PlatformAdapter = require('./src/platform');
+const { DictationStateMachine, TranscriptionQueue, PreRollAudioBuffer } = require('./src/audioPipeline');
+
+const stateMachine = new DictationStateMachine();
+const transcriptionQueue = new TranscriptionQueue();
+const preRollBuffer = new PreRollAudioBuffer(3);
+let audioCaptureWindow = null;
 
 // Enforce single instance lock and route CLI --toggle to running instance
 const gotTheLock = app.requestSingleInstanceLock();
@@ -69,6 +75,28 @@ let isRecording = false;
 let liveAccumulatedText = '';
 let isSliceProcessing = false;
 let pendingSliceData = null;
+
+function createAudioCaptureWindow() {
+  if (audioCaptureWindow && !audioCaptureWindow.isDestroyed()) return audioCaptureWindow;
+
+  audioCaptureWindow = new BrowserWindow({
+    show: false,
+    width: 100,
+    height: 100,
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.js'),
+      nodeIntegration: false,
+      contextIsolation: true
+    }
+  });
+
+  audioCaptureWindow.loadFile('renderer/audio-capture.html');
+  return audioCaptureWindow;
+}
+
+stateMachine.on('state-changed', ({ current }) => {
+  setRecordingStatus(current);
+});
 
 function getIndicatorTargetPosition() {
   const saved = Config.getIndicatorPosition();
@@ -922,6 +950,9 @@ app.whenReady().then(async () => {
 
   createRecordingIndicator(); // Pre-create indicator
   Logger.success('Recording indicator created');
+
+  createAudioCaptureWindow(); // Dedicated hidden background audio capture worker
+  Logger.success('Background audio capture worker initialized');
 
   await initializeServices();
   Logger.success('Services initialized');

@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline';">
+  <title>Listner Audio Capture Worker</title>
+</head>
+<body>
+<script>
+  let mediaRecorder = null;
+  let audioStream = null;
+  let audioContext = null;
+
+  async function startCapture(deviceId = 'default') {
+    try {
+      const constraints = {
+        audio: {
+          deviceId: deviceId !== 'default' ? { exact: deviceId } : undefined,
+          channelCount: 1,
+          sampleRate: 16000,
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true
+        }
+      };
+
+      audioStream = await navigator.mediaDevices.getUserMedia(constraints);
+      mediaRecorder = new MediaRecorder(audioStream, { mimeType: 'audio/webm;codecs=opus' });
+
+      mediaRecorder.ondataavailable = async (e) => {
+        if (e.data && e.data.size > 0) {
+          const buffer = await e.data.arrayBuffer();
+          window.electronAPI.sendAudioChunk(Array.from(new Uint8Array(buffer)));
+        }
+      };
+
+      mediaRecorder.start(250); // 250ms chunks
+      window.electronAPI.sendAudioStatus('started');
+    } catch (err) {
+      window.electronAPI.sendAudioStatus('error', err.message);
+    }
+  }
+
+  function stopCapture() {
+    if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+      mediaRecorder.stop();
+    }
+    if (audioStream) {
+      audioStream.getTracks().forEach(track => track.stop());
+      audioStream = null;
+    }
+    window.electronAPI.sendAudioStatus('stopped');
+  }
+
+  window.electronAPI.onStartCapture((event, deviceId) => startCapture(deviceId));
+  window.electronAPI.onStopCapture(() => stopCapture());
+</script>
+</body>
+</html>
