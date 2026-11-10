@@ -256,6 +256,22 @@ try {
   assert(false, `Reliability test error: ${e.message}`);
 }
 
+// 11. Cross-Platform Architecture Tests
+console.log('\n[Test Suite 11: Platform Adapter & Cross-Platform Architecture]');
+try {
+  const Platform = require('../src/platform');
+  assert(typeof Platform.registerHotkey === 'function', 'Platform.registerHotkey exists');
+  assert(typeof Platform.typeText === 'function', 'Platform.typeText exists');
+  assert(typeof Platform.getFocusedApp === 'function', 'Platform.getFocusedApp exists');
+  assert(typeof Platform.showIndicator === 'function', 'Platform.showIndicator exists');
+  assert(typeof Platform.checkDependencies === 'function', 'Platform.checkDependencies exists');
+
+  const check = Platform.checkDependencies();
+  assert(typeof check === 'object' && typeof check.ok === 'boolean', 'checkDependencies returns structured status');
+} catch (e) {
+  assert(false, `Platform test error: ${e.message}`);
+}
+
 console.log('\n====================================');
 console.log(`Test Results: ${passed} passed, ${failed} failed`);
 console.log('====================================');

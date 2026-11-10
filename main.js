@@ -19,6 +19,42 @@ if (process.argv.includes('--disable-gpu') || process.env.LISTNER_DISABLE_GPU ==
   app.commandLine.appendSwitch('disable-software-rasterizer');
 }
 
+const PlatformAdapter = require('./src/platform');
+
+// Enforce single instance lock and route CLI --toggle to running instance
+const gotTheLock = app.requestSingleInstanceLock();
+if (!gotTheLock) {
+  if (process.argv.includes('--toggle')) {
+    const http = require('http');
+    const socketPath = process.platform === 'win32'
+      ? '\\\\.\\pipe\\listner-ipc'
+      : path.join(require('os').tmpdir(), 'listner.sock');
+
+    const req = http.request({ socketPath, path: '/toggle', method: 'GET' }, () => {
+      app.exit(0);
+    });
+    req.on('error', () => {
+      const reqHttp = http.request({ host: '127.0.0.1', port: 49152, path: '/toggle', method: 'GET' }, () => {
+        app.exit(0);
+      });
+      reqHttp.on('error', () => app.exit(1));
+      reqHttp.end();
+    });
+    req.end();
+  } else {
+    app.exit(0);
+  }
+}
+
+app.on('second-instance', (event, commandLine) => {
+  if (commandLine.includes('--toggle')) {
+    Logger.log('[CLI] Received second-instance --toggle flag');
+    handleRecordToggle();
+  } else {
+    showMainWindow('app');
+  }
+});
+
 let mainWindow = null;
 let settingsWindow = null;
 let recordingIndicator = null;
@@ -101,8 +137,7 @@ function showRecordingIndicator() {
 
   const [posX, posY] = getIndicatorTargetPosition();
   recordingIndicator.setPosition(posX, posY);
-  recordingIndicator.setAlwaysOnTop(true, 'screen-saver');
-  recordingIndicator.show();
+  PlatformAdapter.showIndicator(recordingIndicator);
   recordingIndicator.moveTop();
   recordingIndicator.webContents.executeJavaScript(`if (typeof setRecordingMode === "function") setRecordingMode(${JSON.stringify(indicatorData)});`);
 }
@@ -864,6 +899,13 @@ process.on('unhandledRejection', (reason, promise) => {
 app.whenReady().then(async () => {
   Logger.init(); // Initialize file logging
   Logger.log('App ready, initializing...');
+
+  const depCheck = PlatformAdapter.checkDependencies();
+  if (depCheck && !depCheck.ok && depCheck.missing && depCheck.missing.length > 0) {
+    Logger.warn(`[Platform Check] Missing recommended Linux components: ${depCheck.missing.join(', ')}`);
+  } else {
+    Logger.success('[Platform Check] Platform dependencies verified');
+  }
 
   // Set app icon on macOS
   if (process.platform === 'darwin') {
