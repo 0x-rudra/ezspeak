@@ -13,6 +13,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   setHotkey: (hotkey) => ipcRenderer.invoke('set-hotkey', hotkey),
   getMode: () => ipcRenderer.invoke('get-mode'),
   setMode: (mode) => ipcRenderer.invoke('set-mode', mode),
+  getAutostart: () => ipcRenderer.invoke('get-autostart'),
+  setAutostart: (enabled) => ipcRenderer.invoke('set-autostart', enabled),
   pauseHotkey: () => ipcRenderer.send('pause-hotkey'),
   resumeHotkey: () => ipcRenderer.send('resume-hotkey'),
   getTranscriptionMode: () => ipcRenderer.invoke('get-transcription-mode'),

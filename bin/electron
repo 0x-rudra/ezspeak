@@ -6,7 +6,7 @@ else
   ELECTRON_BIN="$ELECTRON_DIR/electron"
 fi
 
-EXTRA_FLAGS=()
+EXTRA_FLAGS=("--no-sandbox")
 if [ -n "$WAYLAND_DISPLAY" ]; then
   EXTRA_FLAGS+=("--enable-features=UseOzonePlatform" "--ozone-platform=wayland")
 fi

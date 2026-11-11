@@ -41,7 +41,9 @@ const filesToCheck = [
   'main.js',
   'preload.js',
   'renderer/settings.js',
+  'src/audioPipeline.js',
   'src/audioRecorder.js',
+  'src/autostart.js',
   'src/clipboardManager.js',
   'src/config.js',
   'src/hotkeyManager.js',
@@ -311,6 +313,30 @@ try {
   assert(SimpleAudioVAD.isSilent(silentBuf), 'SimpleAudioVAD identifies zero-energy audio as silent');
 } catch (e) {
   assert(false, `Audio pipeline test error: ${e.message}`);
+}
+
+// 13. Packaging & Autostart Tests
+console.log('\n[Test Suite 13: Packaging & Autostart]');
+try {
+  const pkg = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'package.json'), 'utf8'));
+  assert(typeof pkg.build === 'object', 'package.json contains electron-builder build config');
+  assert(pkg.build.appId === 'com.rudranshagupta.listner', 'build.appId is configured correctly');
+  assert(Array.isArray(pkg.build.linux.target) && pkg.build.linux.target.includes('AppImage'), 'Linux target includes AppImage');
+  assert(Array.isArray(pkg.build.linux.target) && pkg.build.linux.target.includes('deb'), 'Linux target includes deb');
+  assert(Array.isArray(pkg.build.win.target) && pkg.build.win.target.includes('nsis'), 'Windows target includes nsis');
+  assert(pkg.build.linux.category === 'Utility', 'Linux category set to Utility');
+
+  const Autostart = require('../src/autostart');
+  assert(typeof Autostart.isEnabled === 'function', 'Autostart.isEnabled is a function');
+  assert(typeof Autostart.enable === 'function', 'Autostart.enable is a function');
+  assert(typeof Autostart.disable === 'function', 'Autostart.disable is a function');
+  assert(typeof Autostart.setAutostart === 'function', 'Autostart.setAutostart is a function');
+
+  const desktopEntry = Autostart.generateDesktopEntry('/usr/bin/listner');
+  assert(desktopEntry.includes('[Desktop Entry]'), 'generateDesktopEntry generates valid desktop header');
+  assert(desktopEntry.includes('Exec="/usr/bin/listner" --minimized'), 'generateDesktopEntry includes correct exec path and minimized flag');
+} catch (e) {
+  assert(false, `Packaging & Autostart test error: ${e.message}`);
 }
 
 console.log('\n====================================');

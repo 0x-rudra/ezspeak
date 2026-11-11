@@ -1,9 +1,23 @@
+const path = require('path');
+const fs = require('fs');
+const os = require('os');
+const crypto = require('crypto');
 const { app, BrowserWindow, Tray, Menu, ipcMain, nativeImage, nativeTheme, shell, dialog } = require('electron');
+
 if (app) {
   app.name = 'listner';
+  try {
+    const defaultUserData = app.getPath('userData');
+    try {
+      fs.accessSync(path.dirname(defaultUserData), fs.constants.W_OK);
+    } catch (e) {
+      const fallbackUserData = path.join(os.tmpdir(), 'listner-userdata');
+      if (!fs.existsSync(fallbackUserData)) fs.mkdirSync(fallbackUserData, { recursive: true });
+      app.setPath('userData', fallbackUserData);
+    }
+  } catch (e) {}
 }
-const path = require('path');
-const crypto = require('crypto');
+
 const HotkeyManager = require('./src/hotkeyManager');
 const AudioRecorder = require('./src/audioRecorder');
 const TranscriptionService = require('./src/transcription');
@@ -12,6 +26,7 @@ const Config = require('./src/config');
 const Logger = require('./src/logger');
 const LocalServer = require('./src/localServer');
 const TranslationService = require('./src/translationService');
+const Autostart = require('./src/autostart');
 
 // GPU acceleration enabled by default; optional flag for environments with buggy GPU drivers
 if (process.argv.includes('--disable-gpu') || process.env.LISTNER_DISABLE_GPU === '1') {
@@ -192,15 +207,18 @@ function updateIndicatorLiveText(text) {
 }
 
 function createTray() {
-  // Use PNG on macOS (Electron doesn't support SVG for tray icons), ICO on Windows
-  const iconFile = process.platform === 'darwin' ? 'icon.png' : 'icon.ico';
-  const iconPath = path.join(__dirname, 'assets', iconFile);
-  const icon = nativeImage.createFromPath(iconPath);
-  tray = new Tray(icon);
-  updateTrayMenu();
-  tray.on('double-click', () => {
-    showMainWindow('app');
-  });
+  try {
+    const iconFile = process.platform === 'win32' ? 'icon.ico' : 'icon.png';
+    const iconPath = path.join(__dirname, 'assets', iconFile);
+    const icon = nativeImage.createFromPath(iconPath);
+    tray = new Tray(icon);
+    updateTrayMenu();
+    tray.on('double-click', () => {
+      showMainWindow('app');
+    });
+  } catch (err) {
+    Logger.warn('Tray creation skipped or failed:', err?.message || err);
+  }
 }
 
 function updateTrayMenu() {
@@ -227,6 +245,16 @@ function updateTrayMenu() {
       label: 'History',
       click: () => {
         showMainWindow('history');
+      }
+    },
+    { type: 'separator' },
+    {
+      label: 'Start at Login',
+      type: 'checkbox',
+      checked: Config.getAutostart(),
+      click: async (item) => {
+        Config.setAutostart(item.checked);
+        await Autostart.setAutostart(item.checked);
       }
     }
   ];
@@ -328,13 +356,17 @@ function showMainWindow(tab = 'app') {
     }
   } else {
     createSettingsWindow();
-    settingsWindow.webContents.once('did-finish-load', () => {
-      settingsWindow.show();
-      settingsWindow.focus();
-      if (tab) {
-        settingsWindow.webContents.send('navigate-tab', tab);
-      }
-    });
+    settingsWindow.show();
+    settingsWindow.focus();
+    if (tab) {
+      settingsWindow.webContents.once('did-finish-load', () => {
+        try {
+          if (settingsWindow && !settingsWindow.isDestroyed()) {
+            settingsWindow.webContents.send('navigate-tab', tab);
+          }
+        } catch (e) {}
+      });
+    }
   }
 }
 
@@ -651,6 +683,17 @@ ipcMain.handle('set-mode', async (event, mode) => {
   return true;
 });
 
+ipcMain.handle('get-autostart', async () => {
+  return await Autostart.isEnabled();
+});
+
+ipcMain.handle('set-autostart', async (event, enabled) => {
+  Config.setAutostart(enabled);
+  const success = await Autostart.setAutostart(enabled);
+  updateTrayMenu();
+  return success;
+});
+
 ipcMain.handle('set-hotkey', async (event, hotkey) => {
   Config.setHotkey(hotkey);
 
@@ -957,6 +1000,10 @@ app.whenReady().then(async () => {
   await initializeServices();
   Logger.success('Services initialized');
 
+  if (Config.getAutostart()) {
+    Autostart.enable().catch(err => Logger.error('[Autostart] Failed to sync on startup:', err.message));
+  }
+
   // Start monitoring for hotkey
   await hotkeyManager.startMonitoring();
 
@@ -965,7 +1012,7 @@ app.whenReady().then(async () => {
     console.log('✓ App launch check passed: Electron app initialized successfully!');
     setTimeout(() => {
       app.isQuitting = true;
-      app.quit();
+      app.exit(0);
     }, 300);
     return;
   }

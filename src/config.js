@@ -1,9 +1,38 @@
 const Store = require('electron-store');
+const fs = require('fs');
+const path = require('path');
+const os = require('os');
+
+function resolveConfigDir() {
+  try {
+    const { app } = require('electron');
+    let targetDir = null;
+    if (app && typeof app.getPath === 'function') {
+      try {
+        targetDir = app.getPath('userData');
+      } catch (e) {}
+    }
+    if (!targetDir) {
+      const configHome = process.env.XDG_CONFIG_HOME || path.join(os.homedir(), '.config');
+      targetDir = path.join(configHome, 'listner');
+    }
+    fs.mkdirSync(targetDir, { recursive: true });
+    const testFile = path.join(targetDir, `.write-test-${Date.now()}`);
+    fs.writeFileSync(testFile, 'ok');
+    fs.unlinkSync(testFile);
+    return targetDir;
+  } catch (err) {
+    const fallbackDir = path.join(os.tmpdir(), 'listner-config');
+    fs.mkdirSync(fallbackDir, { recursive: true });
+    return fallbackDir;
+  }
+}
 
 const HISTORY_MAX = 50;
 
 const store = new Store({
   name: 'listner-config',
+  cwd: resolveConfigDir(),
   defaults: {
     // Mode: 'cloud' (formerly 'online') or 'offline'
     transcriptionMode: 'cloud',
@@ -40,6 +69,7 @@ const store = new Store({
     autoTranslate: false,
 
     // App & Audio Settings
+    autostart: false,
     mode: 'toggle', // 'toggle' or 'hold'
     microphoneDeviceId: 'default',
     hotkey: 'Ctrl+Alt+Space',
@@ -243,6 +273,14 @@ class Config {
   }
 
   // ─── System / General ──────────────────────────────────────────
+  static getAutostart() {
+    return store.get('autostart', false);
+  }
+
+  static setAutostart(enabled) {
+    store.set('autostart', Boolean(enabled));
+  }
+
   static getMode() {
     return store.get('mode', 'toggle');
   }

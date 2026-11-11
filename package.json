@@ -7,7 +7,10 @@
   "packageManager": "pnpm@9.15.0",
   "scripts": {
     "start": "electron .",
-    "dev": "electron . --dev"
+    "dev": "electron . --dev",
+    "build": "electron-builder",
+    "pack": "electron-builder --dir",
+    "test": "node tests/run_tests.js"
   },
   "repository": {
     "type": "git",
@@ -40,5 +43,57 @@
     "ffmpeg-static": "^5.2.0",
     "form-data": "^4.0.0",
     "uiohook-napi": "^1.5.4"
+  },
+  "build": {
+    "appId": "com.rudranshagupta.listner",
+    "productName": "Listner",
+    "directories": {
+      "output": "dist",
+      "buildResources": "assets"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "src/**/*",
+      "renderer/**/*",
+      "assets/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "bin",
+        "to": "bin",
+        "filter": [
+          "wtype*"
+        ]
+      }
+    ],
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "category": "Utility",
+      "maintainer": "Rudransha Gupta <rudranshagupta@gmail.com>",
+      "synopsis": "Cross-platform voice dictation and transcription desktop app",
+      "description": "Cross-platform voice dictation and transcription desktop app powered by Whisper",
+      "desktop": {
+        "StartupWMClass": "listner",
+        "Keywords": "voice;transcription;whisper;dictation;speech-to-text;"
+      }
+    },
+    "win": {
+      "target": [
+        "nsis"
+      ],
+      "icon": "assets/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Listner"
+    }
   }
 }
