@@ -11,7 +11,7 @@ function resolveConfigDir() {
     if (app && typeof app.getPath === 'function') {
       try {
         targetDir = app.getPath('userData');
-      } catch (e) { }
+      } catch (e) {}
     }
     if (!targetDir) {
       const configHome = process.env.XDG_CONFIG_HOME || path.join(os.homedir(), '.config');
@@ -73,7 +73,7 @@ function encryptSecret(plaintext) {
     if (safeStorage && typeof safeStorage.isEncryptionAvailable === 'function' && safeStorage.isEncryptionAvailable()) {
       return 'enc:' + safeStorage.encryptString(trimmed).toString('base64');
     }
-  } catch (e) { }
+  } catch (e) {}
   // safeStorage not available — storing as plaintext. Log once so the user is aware.
   const Logger = require('./logger');
   Logger.warn('[Config] safeStorage unavailable — API key stored as plaintext in config file. Upgrade your OS keyring for encryption.');

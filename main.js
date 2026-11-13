@@ -159,7 +159,7 @@ function createRecordingIndicator() {
   const [posX, posY] = getIndicatorTargetPosition();
 
   recordingIndicator = new BrowserWindow({
-    title: 'listner-indicator',
+    title: 'ezspeak-indicator',
     width: 530,
     height: 76,
     x: posX,
@@ -183,6 +183,13 @@ function createRecordingIndicator() {
 
   recordingIndicator.setAlwaysOnTop(true, 'screen-saver');
   recordingIndicator.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+
+  recordingIndicator.on('moved', () => {
+    try {
+      const [x, y] = recordingIndicator.getPosition();
+      Config.setIndicatorPosition({ x, y });
+    } catch (e) {}
+  });
 
   recordingIndicator.loadFile('renderer/recording-indicator.html');
   recordingIndicator.setIgnoreMouseEvents(false);
@@ -747,11 +754,23 @@ ipcMain.handle('set-hotkey', async (event, hotkey) => {
 
 ipcMain.on('move-indicator', (event, { deltaX, deltaY }) => {
   if (recordingIndicator && !recordingIndicator.isDestroyed()) {
-    const [currX, currY] = recordingIndicator.getPosition();
-    const newX = Math.round(currX + deltaX);
-    const newY = Math.round(currY + deltaY);
-    recordingIndicator.setPosition(newX, newY);
-    Config.setIndicatorPosition({ x: newX, y: newY });
+    try {
+      const [currX, currY] = recordingIndicator.getPosition();
+      const newX = Math.round(currX + deltaX);
+      const newY = Math.round(currY + deltaY);
+      recordingIndicator.setPosition(newX, newY);
+      Config.setIndicatorPosition({ x: newX, y: newY });
+    } catch (e) {}
+
+    // On Wayland compositors like Niri, invoke compositor move-floating-window action
+    if (process.env.NIRI_SOCKET) {
+      try {
+        const { spawn } = require('child_process');
+        const signX = deltaX >= 0 ? `+${Math.round(deltaX)}` : `${Math.round(deltaX)}`;
+        const signY = deltaY >= 0 ? `+${Math.round(deltaY)}` : `${Math.round(deltaY)}`;
+        spawn('niri', ['msg', 'action', 'move-floating-window', '-x', signX, '-y', signY], { stdio: 'ignore' });
+      } catch (e) {}
+    }
   }
 });
 

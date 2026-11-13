@@ -414,9 +414,12 @@
                             style="background: #141417; border: 1px solid #27272a; padding: 6px 10px; border-radius: 6px; font-size: 11.5px; color: #38bdf8; flex: 1; user-select: all;">curl -s http://127.0.0.1:49152/toggle</code>
                         <button type="button" class="preset-btn active" id="btnCopyWaylandCmd">📋 Copy</button>
                     </div>
-                    <p class="help-text" style="margin-top: 8px; line-height: 1.5;">
-                        • <strong>Niri</strong> (<code>~/.config/niri/config.kdl</code>):
+                    <p class="help-text" style="margin-top: 8px; line-height: 1.6;">
+                        • <strong>Niri</strong> (<code>~/.config/niri/config.kdl</code>):<br>
+                        &nbsp;&nbsp;Keybind:
                         <code>Ctrl+Alt+Space { spawn "curl" "-s" "http://127.0.0.1:49152/toggle"; }</code><br>
+                        &nbsp;&nbsp;Floating popup rule:
+                        <code>window-rule { match title=r#"^(listner|ezspeak)-indicator$"#; open-floating true; open-focused false; }</code><br>
                         • <strong>Hyprland</strong> (<code>~/.config/hypr/hyprland.conf</code>):
                         <code>bind = CTRL ALT, SPACE, exec, curl -s http://127.0.0.1:49152/toggle</code>
                     </p>
