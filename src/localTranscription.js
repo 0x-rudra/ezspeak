@@ -488,11 +488,15 @@ class LocalTranscriptionService {
 
       Logger.log(`Running whisper: ${binaryPath} with model ${activeModel}`);
 
+      const numCpus = require('os').cpus().length || 4;
+      const threads = String(Math.min(8, Math.max(4, Math.floor(numCpus))));
+      const lang = activeModel.includes('.en') ? 'en' : 'auto';
+
       const args = [
         '-m', activeModel,
         '-f', wavPath,
-        '-l', 'en',
-        '-t', String(Math.min(6, require('os').cpus().length || 4)),
+        '-l', lang,
+        '-t', threads,
         '-otxt',
         '-np',
         '-nt',
@@ -510,6 +514,7 @@ class LocalTranscriptionService {
       }
 
       const transcribedText = await new Promise((resolve, reject) => {
+        let settled = false;
         const whisperProcess = spawn(binaryPath, args, {
           cwd: binaryDir,
           env
@@ -518,10 +523,23 @@ class LocalTranscriptionService {
         let stdout = '';
         let stderr = '';
 
+        // 15 second safety timeout to prevent stuck transcription processes
+        const timeoutTimer = setTimeout(() => {
+          if (!settled) {
+            settled = true;
+            try { whisperProcess.kill('SIGKILL'); } catch (e) {}
+            reject(new Error('Whisper transcription timed out after 15 seconds'));
+          }
+        }, 15000);
+
         whisperProcess.stdout.on('data', d => { stdout += d.toString(); });
         whisperProcess.stderr.on('data', d => { stderr += d.toString(); });
 
         whisperProcess.on('close', code => {
+          if (settled) return;
+          settled = true;
+          clearTimeout(timeoutTimer);
+
           if (code === 0) {
             const txtFile = `${wavPath}.txt`;
             if (fs.existsSync(txtFile)) {
@@ -537,7 +555,12 @@ class LocalTranscriptionService {
           }
         });
 
-        whisperProcess.on('error', reject);
+        whisperProcess.on('error', err => {
+          if (settled) return;
+          settled = true;
+          clearTimeout(timeoutTimer);
+          reject(err);
+        });
       });
 
       // Cleanup

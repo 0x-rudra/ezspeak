@@ -101,18 +101,13 @@ class LinuxPlatformAdapter {
   showIndicator(window) {
     if (!window || window.isDestroyed()) return;
     try {
-      window.setAlwaysOnTop(true, 'screen-saver');
+      window.setAlwaysOnTop(true, 'pop-up-menu');
       window.showInactive();
+      if (!window.isVisible()) {
+        window.show();
+      }
     } catch (e) {
       window.show();
-    }
-
-    // Ensure the indicator is placed in floating mode on Niri tiling compositor
-    if (this.isNiri && process.env.NIRI_SOCKET) {
-      try {
-        const { spawn } = require('child_process');
-        spawn('niri', ['msg', 'action', 'move-window-to-floating'], { stdio: 'ignore' });
-      } catch (e) {}
     }
   }
 }

@@ -77,30 +77,23 @@ class ClipboardManager {
    * Types text word-by-word at the current cursor position asynchronously
    * Uses non-blocking execFile to ensure UI and audio pipelines never freeze.
    */
-  static async typeWordByWord(text, delayMs = 35) {
+  static async typeWordByWord(text, delayMs = 0) {
     if (!text || text.trim().length === 0) return false;
 
     const trimmed = text.trim();
-    Logger.log(`[ClipboardManager] Typing word-by-word (${trimmed.length} chars): "${trimmed}"`);
+    Logger.log(`[ClipboardManager] Typing transcription (${trimmed.length} chars): "${trimmed}"`);
 
-    // Give a brief 50ms pause to ensure target text box has focus
-    await new Promise(r => setTimeout(r, 50));
+    // Give a brief 30ms pause to ensure target text box has focus
+    await new Promise(r => setTimeout(r, 30));
 
-    // 1. Try native Wayland direct typing using wtype asynchronously if on Linux
+    // 1. Try native Wayland direct typing using wtype in one fast asynchronous call
     if (process.platform === 'linux' && fs.existsSync(WTYPE_PATH)) {
       try {
-        const words = trimmed.match(/\S+\s*/g) || [trimmed];
-        for (const word of words) {
-          const res = await execAsync(WTYPE_PATH, ['-d', '12', '-s', '10', '--', word]);
-          if (res.error) {
-            throw res.error;
-          }
-          if (delayMs > 0) {
-            await new Promise(r => setTimeout(r, delayMs));
-          }
+        const res = await execAsync(WTYPE_PATH, ['-d', '2', '-s', '1', '--', trimmed]);
+        if (res.status === 0 && !res.error) {
+          Logger.success('[ClipboardManager] wtype direct typing completed successfully');
+          return true;
         }
-        Logger.success('[ClipboardManager] wtype async typing completed successfully');
-        return true;
       } catch (err) {
         Logger.warn('[ClipboardManager] wtype direct typing encountered error, falling back to paste:', err.message);
       }

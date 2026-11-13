@@ -35,8 +35,8 @@ const store = new Store({
   name: 'listner-config',
   cwd: resolveConfigDir(),
   defaults: {
-    // Mode: 'sarvam' (cloud STT) or 'offline' (whisper.cpp)
-    transcriptionMode: 'sarvam',
+    // Mode: 'offline' (whisper.cpp 100% local)
+    transcriptionMode: 'offline',
 
     // Sarvam AI Settings (Single unified API provider for STT & Translation)
     sarvamApiKey: '',
@@ -103,17 +103,13 @@ function decryptSecret(storedValue) {
 }
 
 class Config {
-  // ─── Mode & Provider (Sarvam AI Cloud vs Local Offline) ────────
+  // ─── Mode & Provider (100% Local Offline Whisper) ────────
   static getTranscriptionMode() {
-    const mode = store.get('transcriptionMode', 'sarvam');
-    if (mode === 'cloud' || mode === 'online') return 'sarvam';
-    return mode === 'offline' ? 'offline' : 'sarvam';
+    return 'offline';
   }
 
   static setTranscriptionMode(mode) {
-    if (mode === 'offline' || mode === 'sarvam' || mode === 'cloud' || mode === 'online') {
-      store.set('transcriptionMode', mode === 'offline' ? 'offline' : 'sarvam');
-    }
+    store.set('transcriptionMode', 'offline');
   }
 
   static getCloudProvider() {

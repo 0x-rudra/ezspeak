@@ -34,23 +34,17 @@ async function postWithRetry(url, formDataFactory, axiosConfig, maxRetries = 3) 
 class TranscriptionService {
   constructor() {
     this.localService = new LocalTranscriptionService();
-    Logger.log('TranscriptionService initialized with Sarvam AI STT & Local Whisper');
+    Logger.log('TranscriptionService initialized with Local Whisper (100% Offline)');
   }
 
   /**
-   * Main transcribe entrypoint - routes to local offline whisper or Sarvam AI
+   * Main transcribe entrypoint - 100% private offline local Whisper transcription
    * @param {string} audioFilePath - Path to the audio file
    * @returns {Promise<string>} - Transcribed text
    */
   async transcribe(audioFilePath) {
-    const transcriptionMode = Config.getTranscriptionMode();
-    Logger.log(`Transcription mode: ${transcriptionMode}`);
-
-    if (transcriptionMode === 'offline') {
-      return await this.transcribeOffline(audioFilePath);
-    } else {
-      return await this.transcribeSarvam(audioFilePath);
-    }
+    Logger.log('Transcription mode: offline (Local Whisper.cpp)');
+    return await this.transcribeOffline(audioFilePath);
   }
 
   /**

@@ -182,7 +182,6 @@ async function loadSettings() {
     try {
         currentSettings = await window.electronAPI.getAllSettings();
         const hotkey = await window.electronAPI.getHotkey();
-        const providerSelect = document.getElementById('transcriptionProvider');
 
         // Apply hotkey to all UI locations
         applyHotkeyToUI(hotkey || 'Ctrl+Alt+Space');
@@ -191,21 +190,18 @@ async function loadSettings() {
         const mode = (await window.electronAPI.getMode()) || 'toggle';
         applyModeToUI(mode);
 
-        // Determine active provider selector value (Sarvam Cloud vs Offline)
-        let activeVal = 'sarvam';
-        if (currentSettings.transcriptionMode === 'offline') {
-            activeVal = 'offline';
-        }
-
-        if (providerSelect) {
-            providerSelect.value = activeVal;
-            updateProviderUI(activeVal, false);
-        }
+        // Transcription is 100% Local Whisper (offline)
+        try {
+            await window.electronAPI.setTranscriptionMode('offline');
+        } catch (e) {}
 
         // Load local models
         await refreshLocalModels();
 
-        // Load Sarvam AI settings
+        // Update dashboard engine badge
+        updateDashboardEngineText();
+
+        // Load Sarvam AI settings (for Voice Translation)
         await loadSarvamSettings();
 
         // Update dashboard snippet
@@ -219,48 +215,38 @@ async function loadSettings() {
 }
 
 // ─── Update UI on Provider Change ────────────────────────────────────────────
-async function updateProviderUI(selectedProvider, saveToMain = true) {
-    const cardSarvam = document.getElementById('cardSarvam');
+async function updateProviderUI(selectedProvider = 'offline', saveToMain = false) {
     const cardOffline = document.getElementById('providerCardOffline');
     const engineBadge = document.getElementById('transcriptionEngineBadge');
 
-    if (cardSarvam) cardSarvam.style.display = selectedProvider === 'sarvam' ? 'flex' : 'none';
-    if (cardOffline) cardOffline.style.display = selectedProvider === 'offline' ? 'flex' : 'none';
+    if (cardOffline) cardOffline.style.display = 'flex';
     if (engineBadge) {
-        engineBadge.textContent = selectedProvider === 'offline' ? 'Local Whisper' : 'Sarvam Cloud STT';
+        engineBadge.textContent = 'Local Whisper (100% Offline)';
     }
 
     // Update Dashboard Engine display
-    updateDashboardEngineText(selectedProvider);
+    updateDashboardEngineText();
 
     if (saveToMain) {
         try {
-            await window.electronAPI.setTranscriptionMode(selectedProvider === 'offline' ? 'offline' : 'sarvam');
-            showToast(`Engine set to ${getProviderLabel(selectedProvider)}`);
+            await window.electronAPI.setTranscriptionMode('offline');
         } catch (e) {
-            console.error('Failed to update provider:', e);
+            console.error('Failed to set transcription mode:', e);
         }
     }
 }
 
 function getProviderLabel(provider) {
-    if (provider === 'offline') return 'Local Whisper.cpp';
-    return 'Sarvam AI';
+    return 'Local Whisper.cpp';
 }
 
-function updateDashboardEngineText(provider) {
+function updateDashboardEngineText(provider = 'offline') {
     const dashEngine = document.getElementById('dashEngineMode');
     if (!dashEngine) return;
 
-    if (provider === 'offline') {
-        const localSelect = document.getElementById('localModelSelect');
-        const modelName = localSelect ? localSelect.value : 'base.en';
-        dashEngine.textContent = `Local (${modelName})`;
-    } else {
-        const sttSelect = document.getElementById('sarvamSTTModel');
-        const modelName = sttSelect ? sttSelect.value : 'saaras:v2';
-        dashEngine.textContent = `Sarvam AI (${modelName})`;
-    }
+    const localSelect = document.getElementById('localModelSelect');
+    const modelName = localSelect ? localSelect.value : 'base.en';
+    dashEngine.textContent = `Local (${modelName})`;
 }
 
 // ─── Local Model Management & Import ─────────────────────────────────────────

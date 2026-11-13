@@ -165,7 +165,7 @@
                         </div>
                         <div class="card-info">
                             <span class="card-label">Model / Engine</span>
-                            <span class="card-value" id="dashEngineMode">Local Whisper</span>
+                            <span class="card-value" id="dashEngineMode">Local Model</span>
                         </div>
                         <button class="card-action-btn" id="btnGoToSettingsEngine" title="Open Settings">
                             <span>⚙️</span>
@@ -438,63 +438,19 @@
                     <div class="settings-block">
                         <div class="settings-block-header">
                             <span class="settings-block-title">🎙️ Transcription Engine</span>
-                            <span class="status-badge ready" id="transcriptionEngineBadge">Active</span>
+                            <span class="status-badge ready" id="transcriptionEngineBadge">Local Whisper (100%
+                                Offline)</span>
                         </div>
-                        <div class="form-group" style="margin-bottom: 12px;">
-                            <label for="transcriptionProvider">Choose Engine</label>
-                            <select id="transcriptionProvider" class="provider-select">
-                                <option value="sarvam">Sarvam AI (Cloud STT - Saaras v2)</option>
-                                <option value="offline">Local Whisper.cpp (100% Offline)</option>
-                            </select>
-                            <p class="help-text">Choose between Sarvam AI cloud speech-to-text (high accuracy for Indian
-                                accents &amp; 10+ languages) or local private Whisper.</p>
-                        </div>
-
-                        <!-- Sarvam STT Cloud Settings (cardSarvam) -->
-                        <div class="provider-card" id="cardSarvam"
-                            style="border-color: rgba(249, 115, 22, 0.35); margin-top: 10px;">
-                            <div style="display: flex; align-items: center; justify-content: space-between;">
-                                <span style="font-size: 12px; font-weight: 600; color: #fb923c;">⚡ Sarvam Saaras Cloud
-                                    STT</span>
-                                <span class="status-badge ready">Cloud STT</span>
-                            </div>
-
-                            <!-- Models & Language Config -->
-                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px;">
-                                <div class="form-group" style="margin-bottom: 0;">
-                                    <label for="sarvamSTTModel">Speech-to-Text Model</label>
-                                    <select id="sarvamSTTModel" class="provider-select">
-                                        <option value="saaras:v2">saaras:v2 (Recommended - High Accuracy)</option>
-                                        <option value="saaras:v1">saaras:v1</option>
-                                    </select>
-                                </div>
-
-                                <div class="form-group" style="margin-bottom: 0;">
-                                    <label for="sarvamSourceLang">Spoken Language</label>
-                                    <select id="sarvamSourceLang" class="provider-select">
-                                        <option value="en-IN">English (India)</option>
-                                        <option value="hi-IN">Hindi (हिन्दी)</option>
-                                        <option value="bn-IN">Bengali (বাংলা)</option>
-                                        <option value="ta-IN">Tamil (தமிழ்)</option>
-                                        <option value="te-IN">Telugu (తెలుగు)</option>
-                                        <option value="gu-IN">Gujarati (ગુજરાતી)</option>
-                                        <option value="mr-IN">Marathi (मराठी)</option>
-                                        <option value="kn-IN">Kannada (ಕನ್ನಡ)</option>
-                                        <option value="ml-IN">Malayalam (മലയാളം)</option>
-                                        <option value="pa-IN">Punjabi (ਪੰਜਾਬੀ)</option>
-                                        <option value="od-IN">Odia (ଓଡ଼ିଆ)</option>
-                                        <option value="auto">Auto-Detect</option>
-                                    </select>
-                                </div>
-                            </div>
-
-                        </div>
+                        <p class="help-text" style="margin-bottom: 12px;">
+                            On-device private speech-to-text powered by Whisper.cpp. Your audio never leaves your
+                            computer, with zero cloud dependency.
+                        </p>
 
                         <!-- Local Whisper Offline & Import Section (providerCardOffline) -->
-                        <div class="provider-card" id="providerCardOffline" style="display: none; margin-top: 10px;">
+                        <div class="provider-card" id="providerCardOffline" style="display: flex; margin-top: 6px;">
                             <div class="form-group">
                                 <div class="label-with-badge">
-                                    <label for="localModelSelect">Active Local Model</label>
+                                    <label for="localModelSelect">Available Local Model</label>
                                     <span class="status-badge" id="localModelStatusBadge">Checking...</span>
                                 </div>
 
@@ -559,16 +515,59 @@
                         </div>
                     </div>
 
-                    <!-- 2. Translation Engine Block -->
-                    <div class="settings-block">
+                    <!-- 2. Voice Translation Engine Block (with Sarvam AI Credentials) -->
+                    <div class="settings-block" style="border-color: rgba(249, 115, 22, 0.35);">
                         <div class="settings-block-header">
-                            <span class="settings-block-title">🌐 Translation Engine</span>
-                            <span class="status-badge ready">Sarvam Mayura</span>
+                            <span class="settings-block-title" style="color: #fb923c;">🌐 Voice Translation
+                                Engine</span>
+                            <span class="status-badge ready">Sarvam AI Mayura</span>
                         </div>
                         <p class="help-text" style="margin-bottom: 12px;">
-                            Configure neural translation across Indian languages and English, used in Translation Studio
+                            Configure neural translation across 10+ Indian languages and English, used in Translation
+                            Studio
                             and automatic dictation translation.
                         </p>
+
+                        <!-- Sarvam AI API Key inside Voice Translation Engine -->
+                        <div class="form-group" style="margin-bottom: 12px;">
+                            <div class="label-with-badge">
+                                <label for="sarvamApiKey">Sarvam AI API Key</label>
+                                <span class="status-badge" id="sarvamKeyStatusBadge">Checking...</span>
+                            </div>
+                            <div class="input-with-button">
+                                <input type="password" id="sarvamApiKey"
+                                    placeholder="Paste your Sarvam AI Subscription Key..." autocomplete="off" />
+                                <button type="button" class="toggle-visibility" data-target="sarvamApiKey"
+                                    title="Toggle visibility">
+                                    <svg class="eye-icon" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                                        stroke="currentColor" stroke-width="2">
+                                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                        <circle cx="12" cy="12" r="3"></circle>
+                                    </svg>
+                                    <svg class="eye-off-icon" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                                        stroke="currentColor" stroke-width="2" style="display: none;">
+                                        <path
+                                            d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24">
+                                        </path>
+                                        <line x1="1" y1="1" x2="23" y2="23"></line>
+                                    </svg>
+                                </button>
+                            </div>
+                            <div
+                                style="display: flex; align-items: center; justify-content: space-between; margin-top: 6px;">
+                                <p class="help-text" style="margin: 0;">
+                                    Unified key for real-time translation (Mayura) and Translation Studio. <a
+                                        href="https://dashboard.sarvam.ai/" target="_blank">Get free Sarvam AI Key ↗</a>
+                                </p>
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    <button type="button" class="preset-btn" id="btnTestSarvamApi"
+                                        style="padding: 4px 10px; font-size: 11px; border-color: rgba(249, 115, 22, 0.4); color: #fb923c; font-weight: 600;">
+                                        <span>⚡ Test API</span>
+                                    </button>
+                                    <span id="sarvamTestResult" style="font-size: 11px; color: #a1a1aa;"></span>
+                                </div>
+                            </div>
+                        </div>
 
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px;">
                             <div class="form-group" style="margin-bottom: 0;">
@@ -606,48 +605,6 @@
                             </label>
                             <p class="help-text" style="margin-top: 4px;">When checked, your spoken words are
                                 automatically translated to your target language and typed at your cursor.</p>
-                        </div>
-                    </div>
-
-                    <!-- 3. Sarvam AI API Credentials Block -->
-                    <div class="settings-block" style="border-color: rgba(249, 115, 22, 0.35);">
-                        <div class="settings-block-header">
-                            <span class="settings-block-title" style="color: #fb923c;">🔑 Sarvam AI API Key</span>
-                            <span class="status-badge" id="sarvamKeyStatusBadge">Checking...</span>
-                        </div>
-                        <div class="form-group" style="margin-bottom: 12px;">
-                            <label for="sarvamApiKey">Unified Subscription Key</label>
-                            <div class="input-with-button">
-                                <input type="password" id="sarvamApiKey"
-                                    placeholder="Paste your Sarvam AI Subscription Key..." autocomplete="off" />
-                                <button type="button" class="toggle-visibility" data-target="sarvamApiKey"
-                                    title="Toggle visibility">
-                                    <svg class="eye-icon" width="16" height="16" viewBox="0 0 24 24" fill="none"
-                                        stroke="currentColor" stroke-width="2">
-                                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-                                        <circle cx="12" cy="12" r="3"></circle>
-                                    </svg>
-                                    <svg class="eye-off-icon" width="16" height="16" viewBox="0 0 24 24" fill="none"
-                                        stroke="currentColor" stroke-width="2" style="display: none;">
-                                        <path
-                                            d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24">
-                                        </path>
-                                        <line x1="1" y1="1" x2="23" y2="23"></line>
-                                    </svg>
-                                </button>
-                            </div>
-                            <p class="help-text">
-                                Unified key for cloud dictation (Saaras STT) and real-time translation (Mayura). <a
-                                    href="https://dashboard.sarvam.ai/" target="_blank">Get free Sarvam AI Key ↗</a>
-                            </p>
-                        </div>
-
-                        <div style="display: flex; align-items: center; gap: 10px;">
-                            <button type="button" class="preset-btn" id="btnTestSarvamApi"
-                                style="padding: 6px 12px; border-color: rgba(249, 115, 22, 0.4); color: #fb923c; font-weight: 600;">
-                                <span>⚡ Test Sarvam AI API</span>
-                            </button>
-                            <span id="sarvamTestResult" style="font-size: 11.5px; color: #a1a1aa;"></span>
                         </div>
                     </div>
                 </div>

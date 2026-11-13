@@ -34,6 +34,13 @@ class AudioRecorder {
       if (this.resolveStop) {
         try {
           const buffer = Buffer.from(audioData);
+          const isWav = buffer.length > 4 &&
+                        buffer[0] === 0x52 && buffer[1] === 0x49 &&
+                        buffer[2] === 0x46 && buffer[3] === 0x46;
+          const ext = isWav ? '.wav' : '.webm';
+          if (!this.tempFilePath.endsWith(ext)) {
+            this.tempFilePath = this.tempFilePath.replace(/\.[^.]+$/, ext);
+          }
           const fileSizeKB = (buffer.length / 1024).toFixed(2);
           Logger.log(`Writing audio buffer to file: ${this.tempFilePath} (${fileSizeKB} KB)`);
           
@@ -101,7 +108,7 @@ class AudioRecorder {
       fs.mkdirSync(tempDir, { recursive: true });
     }
 
-    this.tempFilePath = path.join(tempDir, `recording_${crypto.randomUUID()}.webm`);
+    this.tempFilePath = path.join(tempDir, `recording_${crypto.randomUUID()}.wav`);
     this.isRecording = true;
     this.recordingStartTime = Date.now(); // Track when recording started
     Logger.log('Temp file path:', this.tempFilePath);
