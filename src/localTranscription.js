@@ -30,7 +30,13 @@ class LocalTranscriptionService {
 
     if (!userData) {
       const home = require('os').homedir();
-      userData = path.join(home, '.config', 'listner');
+      userData = path.join(home, '.config', 'ezspeak');
+      if (!fs.existsSync(userData)) {
+        const legacyConfig = path.join(home, '.config', 'listner');
+        if (fs.existsSync(legacyConfig)) {
+          userData = legacyConfig;
+        }
+      }
     }
     const modelsDir = path.join(userData, 'whisper-models');
     if (!fs.existsSync(modelsDir)) {
@@ -435,6 +441,17 @@ class LocalTranscriptionService {
         const p = path.join(binaryDir, name);
         if (fs.existsSync(p)) return p;
       }
+
+      // Check Windows system PATH via where.exe
+      for (const sysCmd of ['whisper-cli.exe', 'whisper-cli', 'main.exe', 'main']) {
+        try {
+          const res = spawnSync('where', [sysCmd]);
+          if (res.status === 0) {
+            const out = res.stdout.toString().split(/\r?\n/)[0].trim();
+            if (out && fs.existsSync(out)) return out;
+          }
+        } catch (e) {}
+      }
     } else if (process.platform === 'darwin') {
       for (const name of ['whisper-cli', 'main']) {
         const p = path.join(binaryDir, name);
@@ -511,6 +528,8 @@ class LocalTranscriptionService {
         env.LD_LIBRARY_PATH = `${binaryDir}:${process.env.LD_LIBRARY_PATH || ''}`;
       } else if (process.platform === 'darwin') {
         env.DYLD_LIBRARY_PATH = `${binaryDir}:${process.env.DYLD_LIBRARY_PATH || ''}`;
+      } else if (process.platform === 'win32') {
+        env.PATH = `${binaryDir};${process.env.PATH || ''}`;
       }
 
       const transcribedText = await new Promise((resolve, reject) => {

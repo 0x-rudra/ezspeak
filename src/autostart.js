@@ -13,7 +13,7 @@ class AutostartManager {
 
   getLinuxAutostartPath() {
     const configHome = process.env.XDG_CONFIG_HOME || path.join(os.homedir(), '.config');
-    return path.join(configHome, 'autostart', 'listner.desktop');
+    return path.join(configHome, 'autostart', 'ezspeak.desktop');
   }
 
   generateDesktopEntry(execPath) {
@@ -21,11 +21,11 @@ class AutostartManager {
     return `[Desktop Entry]
 Type=Application
 Version=1.0
-Name=Listner
+Name=EzSpeak
 GenericName=Voice Dictation
 Comment=Cross-platform voice dictation and transcription desktop app
 Exec="${targetExec}" --minimized
-Icon=listner
+Icon=ezspeak
 Terminal=false
 Categories=Utility;AudioVideo;
 StartupNotify=false

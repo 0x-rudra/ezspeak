@@ -15,7 +15,7 @@ function resolveConfigDir() {
     }
     if (!targetDir) {
       const configHome = process.env.XDG_CONFIG_HOME || path.join(os.homedir(), '.config');
-      targetDir = path.join(configHome, 'listner');
+      targetDir = path.join(configHome, 'ezspeak');
     }
     fs.mkdirSync(targetDir, { recursive: true });
     const testFile = path.join(targetDir, `.write-test-${Date.now()}`);
@@ -23,17 +23,27 @@ function resolveConfigDir() {
     fs.unlinkSync(testFile);
     return targetDir;
   } catch (err) {
-    const fallbackDir = path.join(os.tmpdir(), 'listner-config');
+    const fallbackDir = path.join(os.tmpdir(), 'ezspeak-config');
     fs.mkdirSync(fallbackDir, { recursive: true });
     return fallbackDir;
   }
 }
 
 const HISTORY_MAX = 50;
+const configCwd = resolveConfigDir();
+
+// Seamless migration from legacy listner-config.json if present
+try {
+  const legacyFile = path.join(configCwd, 'listner-config.json');
+  const targetFile = path.join(configCwd, 'ezspeak-config.json');
+  if (fs.existsSync(legacyFile) && !fs.existsSync(targetFile)) {
+    fs.copyFileSync(legacyFile, targetFile);
+  }
+} catch (e) { }
 
 const store = new Store({
-  name: 'listner-config',
-  cwd: resolveConfigDir(),
+  name: 'ezspeak-config',
+  cwd: configCwd,
   defaults: {
     // Mode: 'offline' (whisper.cpp 100% local)
     transcriptionMode: 'offline',

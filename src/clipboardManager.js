@@ -147,7 +147,28 @@ class ClipboardManager {
         }
       }
 
-      // 4. Restore user's previous clipboard content after paste completes
+      // 4. Windows PowerShell fallback if nut-js was unavailable or failed
+      if (!pasted && process.platform === 'win32') {
+        try {
+          await new Promise((resolve) => {
+            execFile('powershell.exe', [
+              '-NoProfile',
+              '-Command',
+              `$wshell = New-Object -ComObject wscript.shell; $wshell.SendKeys('^v')`
+            ], { timeout: 1500 }, (err) => {
+              if (!err) {
+                pasted = true;
+                Logger.success('[ClipboardManager] Pasted via Windows PowerShell SendKeys');
+              }
+              resolve();
+            });
+          });
+        } catch (e) {
+          Logger.warn('[ClipboardManager] Windows PowerShell paste fallback failed:', e.message);
+        }
+      }
+
+      // 5. Restore user's previous clipboard content after paste completes
       this.restoreClipboard(previousClipboard, 200);
 
       return pasted;

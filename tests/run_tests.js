@@ -1,8 +1,8 @@
-// Automated test runner for Listner
+// Automated test runner for EzSpeak
 const os = require('os');
 const path = require('path');
 // Ensure electron-store uses a writable directory in test runs
-const testConfigDir = path.join(os.tmpdir(), 'listner-test-config-' + Date.now());
+const testConfigDir = path.join(os.tmpdir(), 'ezspeak-test-config-' + Date.now());
 const fs = require('fs');
 fs.mkdirSync(testConfigDir, { recursive: true });
 process.env.XDG_CONFIG_HOME = testConfigDir;
@@ -32,7 +32,7 @@ function assert(condition, message) {
 }
 
 console.log('====================================');
-console.log('Running Listner Test Suite');
+console.log('Running EzSpeak Test Suite');
 console.log('====================================\n');
 
 // 1. Syntax check all JS files
@@ -125,8 +125,8 @@ try {
 console.log('\n[Test Suite 6: Project Naming & Metadata]');
 try {
   const pkg = require('../package.json');
-  assert(pkg.name === 'listner', 'package.json name is listner');
-  assert(pkg.productName === 'Listner', 'package.json productName is Listner');
+  assert(pkg.name === 'ezspeak', 'package.json name is ezspeak');
+  assert(pkg.productName === 'EzSpeak', 'package.json productName is EzSpeak');
   assert(pkg.license === 'MIT', 'package.json license is MIT');
   assert(fs.existsSync(path.join(__dirname, '..', 'README.md')), 'README.md exists');
   assert(fs.existsSync(path.join(__dirname, '..', 'LICENSE')), 'LICENSE exists');
@@ -325,7 +325,7 @@ console.log('\n[Test Suite 13: Packaging & Autostart]');
 try {
   const pkg = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'package.json'), 'utf8'));
   assert(typeof pkg.build === 'object', 'package.json contains electron-builder build config');
-  assert(pkg.build.appId === 'com.rudranshagupta.listner', 'build.appId is configured correctly');
+  assert(pkg.build.appId === 'com.rudranshagupta.ezspeak', 'build.appId is configured correctly');
   assert(Array.isArray(pkg.build.linux.target) && pkg.build.linux.target.includes('AppImage'), 'Linux target includes AppImage');
   assert(Array.isArray(pkg.build.linux.target) && pkg.build.linux.target.includes('deb'), 'Linux target includes deb');
   assert(Array.isArray(pkg.build.win.target) && pkg.build.win.target.includes('nsis'), 'Windows target includes nsis');
@@ -337,9 +337,9 @@ try {
   assert(typeof Autostart.disable === 'function', 'Autostart.disable is a function');
   assert(typeof Autostart.setAutostart === 'function', 'Autostart.setAutostart is a function');
 
-  const desktopEntry = Autostart.generateDesktopEntry('/usr/bin/listner');
+  const desktopEntry = Autostart.generateDesktopEntry('/usr/bin/ezspeak');
   assert(desktopEntry.includes('[Desktop Entry]'), 'generateDesktopEntry generates valid desktop header');
-  assert(desktopEntry.includes('Exec="/usr/bin/listner" --minimized'), 'generateDesktopEntry includes correct exec path and minimized flag');
+  assert(desktopEntry.includes('Exec="/usr/bin/ezspeak" --minimized'), 'generateDesktopEntry includes correct exec path and minimized flag');
 } catch (e) {
   assert(false, `Packaging & Autostart test error: ${e.message}`);
 }

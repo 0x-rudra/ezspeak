@@ -15,7 +15,7 @@ class Logger {
       if (!fs.existsSync(logDir)) {
         fs.mkdirSync(logDir, { recursive: true });
       }
-      const logFile = path.join(logDir, `listner-${new Date().toISOString().split('T')[0]}.log`);
+      const logFile = path.join(logDir, `ezspeak-${new Date().toISOString().split('T')[0]}.log`);
       this.logFile = logFile;
       // Rotate old log if it exceeds the size limit
       this._rotateIfNeeded();

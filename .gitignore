@@ -9,4 +9,4 @@ temp_audio/
 .npm
 .electron-gyp
 whisper-models/
-.agents/skills
+.agents/

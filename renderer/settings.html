@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Content-Security-Policy"
         content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; img-src 'self' data:;">
-    <title>Listner</title>
+    <title>EzSpeak</title>
     <link rel="stylesheet" href="settings.css">
 </head>
 
@@ -15,7 +15,7 @@
         <div class="titlebar-drag-region">
             <div class="titlebar-title">
                 <span class="titlebar-dot"></span>
-                <span>Listner</span>
+                <span>EzSpeak</span>
             </div>
         </div>
         <div class="window-controls">
@@ -38,14 +38,17 @@
             <!-- Brand -->
             <div class="sidebar-brand">
                 <div class="logo-mark">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"
                         stroke-linecap="round" stroke-linejoin="round">
                         <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path>
                         <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
                         <line x1="12" x2="12" y1="19" y2="22"></line>
                     </svg>
                 </div>
-                <span class="sidebar-brand-name">Listner</span>
+                <div class="brand-info">
+                    <span class="sidebar-brand-name">EzSpeak</span>
+                    <span class="sidebar-brand-ver">v0.2.0</span>
+                </div>
             </div>
 
             <!-- Nav Items -->
@@ -137,7 +140,10 @@
             <!-- 1. Main Dictation Dashboard Panel -->
             <div class="tab-panel" id="panel-app">
                 <div class="hero-card">
+                    <div class="hero-ambient-glow"></div>
                     <div class="mic-glow-container">
+                        <div class="mic-pulse-ring ring-1"></div>
+                        <div class="mic-pulse-ring ring-2"></div>
                         <button class="hero-mic-btn" id="heroMicBtn" title="Click to start/stop dictating">
                             <svg class="mic-icon" width="34" height="34" viewBox="0 0 24 24" fill="none"
                                 stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
@@ -148,10 +154,28 @@
                             <div class="spinner-overlay" id="heroSpinner"></div>
                         </button>
                     </div>
-                    <div class="hero-prompt-text" id="heroPromptText">Click to start dictation</div>
+
+                    <div class="hero-status-row">
+                        <div class="hero-prompt-text" id="heroPromptText">Click to start dictation</div>
+                        <div class="hero-recording-timer" id="heroRecordingTimer" style="display: none;">
+                            <span class="recording-live-dot"></span>
+                            <span id="heroTimerText">00:00</span>
+                        </div>
+                    </div>
+
+                    <!-- Soundwave Animation Bars -->
+                    <div class="hero-soundwave-bars" id="heroSoundwaveBars" style="display: none;">
+                        <span class="bar bar-1"></span>
+                        <span class="bar bar-2"></span>
+                        <span class="bar bar-3"></span>
+                        <span class="bar bar-4"></span>
+                        <span class="bar bar-5"></span>
+                        <span class="bar bar-6"></span>
+                        <span class="bar bar-7"></span>
+                    </div>
 
                     <div class="shortcut-banner">
-                        <span>Global hotkey:</span>
+                        <span class="shortcut-label">Global hotkey:</span>
                         <kbd id="dashboardHotkeyDisplay">Ctrl+Alt+Space</kbd>
                         <span class="sub-hint">Press anywhere to dictate &amp; paste</span>
                     </div>
@@ -439,6 +463,7 @@
                             <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
                         </svg>
                         <input type="text" id="snippetSearchInput" placeholder="Filter snippets by trigger or text...">
+                        <kbd class="search-kbd-shortcut" title="Press / anywhere to search">/</kbd>
                     </div>
                     <span class="snippets-count-badge" id="snippetsCountBadge">0 snippets</span>
                 </div>
@@ -549,7 +574,7 @@
                     </div>
                     <p class="help-text">
                         On Wayland, background global shortcuts are controlled by your compositor. You can bind any
-                        compositor key to trigger dictation via Listner's local IPC:
+                        compositor key to trigger dictation via EzSpeak's local IPC:
                     </p>
                     <div style="display: flex; align-items: center; gap: 8px; margin-top: 8px;">
                         <code

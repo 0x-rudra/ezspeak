@@ -1,6 +1,6 @@
 {
-  "name": "listner",
-  "productName": "Listner",
+  "name": "ezspeak",
+  "productName": "EzSpeak",
   "version": "0.2.0",
   "description": "Cross-platform voice dictation and transcription desktop app",
   "main": "main.js",
@@ -9,17 +9,24 @@
     "start": "node scripts/start.js",
     "dev": "node scripts/start.js --dev",
     "build": "electron-builder",
+    "build:win": "electron-builder --win",
+    "build:mac": "electron-builder --mac",
+    "build:linux": "electron-builder --linux",
+    "build:all": "electron-builder -wml",
     "pack": "electron-builder --dir",
+    "pack:win": "electron-builder --win --dir",
+    "pack:mac": "electron-builder --mac --dir",
+    "pack:linux": "electron-builder --linux --dir",
     "test": "node tests/run_tests.js"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/0x-rudra/listner.git"
+    "url": "git+https://github.com/0x-rudra/ezspeak.git"
   },
   "bugs": {
-    "url": "https://github.com/0x-rudra/listner/issues"
+    "url": "https://github.com/0x-rudra/ezspeak/issues"
   },
-  "homepage": "https://github.com/0x-rudra/listner#readme",
+  "homepage": "https://github.com/0x-rudra/ezspeak#readme",
   "keywords": [
     "voice",
     "transcription",
@@ -45,8 +52,8 @@
     "uiohook-napi": "^1.5.4"
   },
   "build": {
-    "appId": "com.rudranshagupta.listner",
-    "productName": "Listner",
+    "appId": "com.rudranshagupta.ezspeak",
+    "productName": "EzSpeak",
     "directories": {
       "output": "dist",
       "buildResources": "assets"
@@ -66,6 +73,13 @@
         "filter": [
           "wtype*"
         ]
+      },
+      {
+        "from": "whisper-bin",
+        "to": "whisper-bin",
+        "filter": [
+          "**/*"
+        ]
       }
     ],
     "linux": {
@@ -78,7 +92,7 @@
       "synopsis": "Cross-platform voice dictation and transcription desktop app",
       "description": "Cross-platform voice dictation and transcription desktop app powered by Whisper",
       "desktop": {
-        "StartupWMClass": "listner",
+        "StartupWMClass": "ezspeak",
         "Keywords": "voice;transcription;whisper;dictation;speech-to-text;"
       }
     },
@@ -88,12 +102,20 @@
       ],
       "icon": "assets/icon.ico"
     },
+    "mac": {
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "category": "public.app-category.utilities",
+      "icon": "assets/icon.icns"
+    },
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "Listner"
+      "shortcutName": "EzSpeak"
     }
   }
 }

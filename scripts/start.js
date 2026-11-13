@@ -28,6 +28,6 @@ child.on('close', (code) => {
 });
 
 child.on('error', (err) => {
-  console.error('[Listner] Failed to launch Electron:', err.message);
+  console.error('[EzSpeak] Failed to launch Electron:', err.message);
   process.exit(1);
 });

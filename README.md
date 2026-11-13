@@ -1,4 +1,4 @@
-# Listner
+# EzSpeak
 
 > Fast, private, cross-platform voice dictation and transcription desktop application. Powered by resident Whisper.cpp and high-performance cloud providers with zero-leak clipboard injection.
 
@@ -10,7 +10,7 @@
 - **Cloud Transcription (Sarvam AI)**: High-accuracy, low-latency cloud speech-to-text powered by Sarvam AI (`saaras:v2` / `saaras:v1`) supporting Indian English and 10+ Indic languages.
 - **Indic & Global Translation**: Real-time translation to Hindi, Tamil, Telugu, Bengali, Kannada, and other languages powered by Sarvam AI (`mayura:v1`).
 - **Cross-Platform Global Hotkey**:
-  - **Linux Wayland**: First-class support for Wayland compositors (Niri, Hyprland, Sway) via Unix domain socket IPC (`/tmp/listner.sock`) and localhost HTTP (`http://127.0.0.1:49152/toggle`).
+  - **Linux Wayland**: First-class support for Wayland compositors (Niri, Hyprland, Sway) via Unix domain socket IPC (`/tmp/ezspeak.sock`) and localhost HTTP (`http://127.0.0.1:49152/toggle`).
   - **Windows & macOS**: Native OS global shortcuts for Toggle mode and low-overhead Push-to-Talk (Hold mode).
 - **Safe Keystroke & Clipboard Restoration**: Automatically backs up clipboard state prior to text injection, injects transcriptions asynchronously via native typing / clipboard pasting, and immediately restores the user's prior clipboard.
 - **Security-First Architecture**:
@@ -27,7 +27,7 @@
 
 ```
                         ┌────────────────────────────────────────┐
-                        │              Listner Core              │
+                        │              EzSpeak Core              │
                         │           (Electron Main / JS)         │
                         └─┬─────────────────┬──────────────────┬─┘
                           │                 │                  │
@@ -74,8 +74,8 @@
 ### Installation
 ```bash
 # Clone the repository
-git clone https://github.com/0x-rudra/listner.git
-cd listner
+git clone https://github.com/0x-rudra/ezspeak.git
+cd ezspeak
 
 # Install dependencies
 pnpm install
@@ -88,7 +88,7 @@ pnpm start
 
 ## ⌨️ Global Hotkey & Compositor Setup
 
-Listner supports both **Toggle** (tap to start, tap to stop) and **Hold** (push-to-talk) modes.
+EzSpeak supports both **Toggle** (tap to start, tap to stop) and **Hold** (push-to-talk) modes.
 
 ### Linux Wayland (Niri / Hyprland / Sway)
 On Wayland compositors, global hotkeys are managed by your compositor configuration:
@@ -97,24 +97,24 @@ On Wayland compositors, global hotkeys are managed by your compositor configurat
 ```kdl
 binds {
     // Single hotkey to toggle voice dictation
-    Mod+Space { spawn "listner" "--toggle"; }
+    Mod+Space { spawn "ezspeak" "--toggle"; }
 }
 ```
 *Alternatively, you can trigger via the local socket directly:*
 ```kdl
 binds {
-    Mod+Space { spawn "curl" "-s" "--unix-socket" "/tmp/listner.sock" "http://localhost/toggle"; }
+    Mod+Space { spawn "curl" "-s" "--unix-socket" "/tmp/ezspeak.sock" "http://localhost/toggle"; }
 }
 ```
 
 #### Hyprland Configuration (`~/.config/hypr/hyprland.conf`)
 ```ini
-bind = $mainMod, Space, exec, listner --toggle
+bind = $mainMod, Space, exec, ezspeak --toggle
 ```
 
 #### Sway Configuration (`~/.config/sway/config`)
 ```ini
-bindsym $mod+space exec listner --toggle
+bindsym $mod+space exec ezspeak --toggle
 ```
 
 ### Windows & macOS
@@ -150,14 +150,14 @@ pnpm run pack
 ```
 
 Build outputs will be generated in the `dist/` directory:
-- **Linux**: `dist/Listner-0.2.0.AppImage`, `dist/listner_0.2.0_amd64.deb`
-- **Windows**: `dist/Listner Setup 0.2.0.exe`
+- **Linux**: `dist/EzSpeak-0.2.0.AppImage`, `dist/ezspeak_0.2.0_amd64.deb`
+- **Windows**: `dist/EzSpeak Setup 0.2.0.exe`
 
 ---
 
 ## 🧪 Testing & Verification
 
-Listner features a comprehensive 13-suite automated test suite covering:
+EzSpeak features a comprehensive automated test suite covering:
 1. JavaScript syntax integrity across all modules and renderers.
 2. Translation services & language catalogue.
 3. Structured logging with transcript redaction.

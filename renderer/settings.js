@@ -500,6 +500,37 @@ async function loadLatestDictationSnippet() {
     }
 }
 
+let recordingTimerInterval = null;
+let recordingStartTime = 0;
+
+function startHeroRecordingTimer() {
+    stopHeroRecordingTimer();
+    recordingStartTime = Date.now();
+    const timerContainer = document.getElementById('heroRecordingTimer');
+    const timerText = document.getElementById('heroTimerText');
+    const soundwave = document.getElementById('heroSoundwaveBars');
+    if (timerContainer) timerContainer.style.display = 'inline-flex';
+    if (soundwave) soundwave.style.display = 'flex';
+
+    recordingTimerInterval = setInterval(() => {
+        const elapsedSec = Math.floor((Date.now() - recordingStartTime) / 1000);
+        const mins = String(Math.floor(elapsedSec / 60)).padStart(2, '0');
+        const secs = String(elapsedSec % 60).padStart(2, '0');
+        if (timerText) timerText.textContent = `${mins}:${secs}`;
+    }, 500);
+}
+
+function stopHeroRecordingTimer() {
+    if (recordingTimerInterval) {
+        clearInterval(recordingTimerInterval);
+        recordingTimerInterval = null;
+    }
+    const timerContainer = document.getElementById('heroRecordingTimer');
+    const soundwave = document.getElementById('heroSoundwaveBars');
+    if (timerContainer) timerContainer.style.display = 'none';
+    if (soundwave) soundwave.style.display = 'none';
+}
+
 function updateRecordingState(status) {
     const micBtn = document.getElementById('heroMicBtn');
     const prompt = document.getElementById('heroPromptText');
@@ -511,12 +542,15 @@ function updateRecordingState(status) {
         if (prompt) prompt.textContent = 'Listening... Click or release hotkey to finish';
         if (pill) pill.className = 'sidebar-status-pill recording';
         if (statusText) statusText.textContent = 'Recording...';
+        startHeroRecordingTimer();
     } else if (status === 'processing') {
+        stopHeroRecordingTimer();
         if (micBtn) micBtn.className = 'hero-mic-btn processing';
         if (prompt) prompt.textContent = 'Transcribing audio...';
         if (pill) pill.className = 'sidebar-status-pill processing';
         if (statusText) statusText.textContent = 'Transcribing...';
     } else {
+        stopHeroRecordingTimer();
         if (micBtn) micBtn.className = 'hero-mic-btn';
         if (prompt) prompt.textContent = 'Click to start dictation';
         if (pill) pill.className = 'sidebar-status-pill';
@@ -1617,11 +1651,20 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // ESC to hide window
+    // ESC to hide window, / to jump to snippets search
     document.addEventListener('keydown', e => {
         const hotkeyInput = document.getElementById('hotkey');
         if (e.key === 'Escape' && document.activeElement !== hotkeyInput) {
+            closeSnippetEditor();
             window.electronAPI.closeSettings();
+        } else if (e.key === '/' && !['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName)) {
+            e.preventDefault();
+            const btnSnippets = document.querySelector('.sidebar-nav-item[data-tab="snippets"]');
+            if (btnSnippets) btnSnippets.click();
+            const searchInput = document.getElementById('snippetSearchInput');
+            if (searchInput) {
+                setTimeout(() => searchInput.focus(), 50);
+            }
         }
     });
 

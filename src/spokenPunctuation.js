@@ -69,7 +69,7 @@ class SpokenPunctuation {
 
     PROTECTED_PHRASES.forEach((pattern, index) => {
       protectedText = protectedText.replace(pattern, (match) => {
-        const token = `__LISTNER_PROT_${index}_${placeholders.length}__`;
+        const token = `__EZSPEAK_PROT_${index}_${placeholders.length}__`;
         placeholders.push({ token, match });
         return token;
       });

@@ -8,13 +8,13 @@ if (!app) {
   // If executed via plain Node.js or with ELECTRON_RUN_AS_NODE=1, delegate to scripts/start.js
   require('./scripts/start.js');
 } else {
-  app.name = 'listner';
+  app.name = 'ezspeak';
   try {
     const defaultUserData = app.getPath('userData');
     try {
       fs.accessSync(path.dirname(defaultUserData), fs.constants.W_OK);
     } catch (e) {
-      const fallbackUserData = path.join(os.tmpdir(), 'listner-userdata');
+      const fallbackUserData = path.join(os.tmpdir(), 'ezspeak-userdata');
       if (!fs.existsSync(fallbackUserData)) fs.mkdirSync(fallbackUserData, { recursive: true });
       app.setPath('userData', fallbackUserData);
     }
@@ -33,7 +33,7 @@ if (!app) {
   const SpokenPunctuation = require('./src/spokenPunctuation');
 
   // GPU acceleration enabled by default; optional flag for environments with buggy GPU drivers
-  if (process.argv.includes('--disable-gpu') || process.env.LISTNER_DISABLE_GPU === '1') {
+  if (process.argv.includes('--disable-gpu') || process.env.EZSPEAK_DISABLE_GPU === '1' || process.env.LISTNER_DISABLE_GPU === '1') {
     app.commandLine.appendSwitch('disable-gpu');
     app.commandLine.appendSwitch('disable-software-rasterizer');
   }
@@ -73,8 +73,8 @@ if (!app) {
     if (process.argv.includes('--toggle')) {
       const http = require('http');
       const socketPath = process.platform === 'win32'
-        ? '\\\\.\\pipe\\listner-ipc'
-        : path.join(require('os').tmpdir(), 'listner.sock');
+        ? '\\\\.\\pipe\\ezspeak-ipc'
+        : path.join(require('os').tmpdir(), 'ezspeak.sock');
 
       const req = http.request({ socketPath, path: '/toggle', method: 'GET' }, () => {
         app.exit(0);
@@ -88,7 +88,7 @@ if (!app) {
       });
       req.end();
     } else {
-      console.log('[Listner] Another instance of Listner is already running. Focus signaled.');
+      console.log('[EzSpeak] Another instance of EzSpeak is already running. Focus signaled.');
       app.exit(0);
     }
   }
@@ -342,7 +342,7 @@ if (!app) {
     const contextMenu = Menu.buildFromTemplate(menuItems);
 
     tray.setContextMenu(contextMenu);
-    tray.setToolTip('Listner - Voice to Text');
+    tray.setToolTip('EzSpeak - Voice to Text');
   }
 
   function setRecordingStatus(status) {
@@ -462,54 +462,54 @@ if (!app) {
     localServer.start();
   }
 
-  function cleanWhisperOutput(text, isAudioSilent = false) {
-    if (!text) return '';
-    let str = String(text).trim();
+function cleanWhisperOutput(text, isAudioSilent = false) {
+  if (!text) return '';
+  let str = String(text).trim();
 
-    // Strip only known Whisper non-speech tags, leaving user brackets like [index] or (example) intact
-    str = str.replace(/\[(MUSIC|APPLAUSE|LAUGHTER|BLANK_AUDIO|NOISE|BELL|COUGH|THUNDER|SNORT)\]/gi, '').trim();
+  // Strip only known Whisper non-speech tags, leaving user brackets like [index] or (example) intact
+  str = str.replace(/\[(MUSIC|APPLAUSE|LAUGHTER|BLANK_AUDIO|NOISE|BELL|COUGH|THUNDER|SNORT)\]/gi, '').trim();
 
-    // Known subtitle hallucination lines
-    const hallucinations = [
-      'thanks for watching', 'thanks for watching!', 'thanks for watching.',
-      'thank you for watching', 'thank you for watching.',
-      'subtitles by', 'subscribe to the channel', 'please subscribe'
-    ];
-    const normalized = str.toLowerCase().replace(/[\.\?!,]/g, '').trim();
-    if (hallucinations.includes(normalized)) {
-      return '';
-    }
-
-    // Only drop "thank you" or "bye" if silence/VAD detected no speech
-    if (isAudioSilent && (normalized === 'thank you' || normalized === 'bye' || normalized === 'you')) {
-      return '';
-    }
-
-    // Drop bare punctuation hallucinations
-    if (/^[\.\,\s\-_~]+$/.test(str)) {
-      return '';
-    }
-
-    return str;
+  // Known subtitle hallucination lines
+  const hallucinations = [
+    'thanks for watching', 'thanks for watching!', 'thanks for watching.',
+    'thank you for watching', 'thank you for watching.',
+    'subtitles by', 'subscribe to the channel', 'please subscribe'
+  ];
+  const normalized = str.toLowerCase().replace(/[\.\?!,]/g, '').trim();
+  if (hallucinations.includes(normalized)) {
+    return '';
   }
 
-  /**
-   * Detect voice stop commands (e.g. "stop listening", "stop recording", "turn off")
-   * and strip them only if spoken as a standalone phrase
-   */
-  function detectAndCleanVoiceCommands(text) {
-    if (!text) return { text: '', shouldStop: false };
-    let cleaned = cleanWhisperOutput(text);
-
-    // Match stop commands as a standalone phrase/sentence only, NOT in the middle of arbitrary dictation
-    const standaloneStopRegex = /^\s*(stop\s+listening|stop\s+dictation|stop\s+recording|turn\s+off\s+listening|turn\s+off|please\s+stop\s+listening)\b[\.\?!]?\s*$/i;
-
-    if (standaloneStopRegex.test(cleaned)) {
-      return { text: '', shouldStop: true };
-    }
-
-    return { text: cleaned, shouldStop: false };
+  // Only drop "thank you" or "bye" if silence/VAD detected no speech
+  if (isAudioSilent && (normalized === 'thank you' || normalized === 'bye' || normalized === 'you')) {
+    return '';
   }
+
+  // Drop bare punctuation hallucinations
+  if (/^[\.\,\s\-_~]+$/.test(str)) {
+    return '';
+  }
+
+  return str;
+}
+
+/**
+ * Detect voice stop commands (e.g. "stop listening", "stop recording", "turn off")
+ * and strip them only if spoken as a standalone phrase
+ */
+function detectAndCleanVoiceCommands(text) {
+  if (!text) return { text: '', shouldStop: false };
+  let cleaned = cleanWhisperOutput(text);
+
+  // Match stop commands as a standalone phrase/sentence only, NOT in the middle of arbitrary dictation
+  const standaloneStopRegex = /^\s*(stop\s+listening|stop\s+dictation|stop\s+recording|turn\s+off\s+listening|turn\s+off|please\s+stop\s+listening)\b[\.\?!]?\s*$/i;
+
+  if (standaloneStopRegex.test(cleaned)) {
+    return { text: '', shouldStop: true };
+  }
+
+  return { text: cleaned, shouldStop: false };
+}
 
   /**
    * Calculates newly spoken words between live slices for streaming cursor insertion
@@ -736,7 +736,7 @@ if (!app) {
 
     isSliceProcessing = true;
     try {
-      const tempDir = path.join(require('os').tmpdir(), 'listner');
+      const tempDir = path.join(require('os').tmpdir(), 'ezspeak');
       if (!require('fs').existsSync(tempDir)) {
         require('fs').mkdirSync(tempDir, { recursive: true });
       }
@@ -1220,7 +1220,7 @@ if (!app) {
     Logger.success('Application window opened');
 
     console.log('\n========================================');
-    console.log('   Listner is ready!');
+    console.log('   EzSpeak is ready!');
     console.log('========================================\n');
   });
 

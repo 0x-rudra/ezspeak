@@ -14,8 +14,8 @@ class LocalServer {
     this.server = null;
     this.socketServer = null;
     this.socketPath = process.platform === 'win32'
-      ? '\\\\.\\pipe\\listner-ipc'
-      : path.join(os.tmpdir(), 'listner.sock');
+      ? '\\\\.\\pipe\\ezspeak-ipc'
+      : path.join(os.tmpdir(), 'ezspeak.sock');
   }
 
   handleRequest(req, res) {
