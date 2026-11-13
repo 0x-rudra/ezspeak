@@ -21,7 +21,31 @@ elif [ "$CMD" = "test" ]; then
   exec "$BIN_DIR/node" "$BIN_DIR/../tests/run_tests.js" "$@"
 elif [ "$CMD" = "build" ]; then
   shift
-  exec "$BIN_DIR/node" "$BIN_DIR/../node_modules/.bin/electron-builder" "$@"
+  exec "$BIN_DIR/node" "$BIN_DIR/../node_modules/electron-builder/cli.js" "$@"
+elif [ "$CMD" = "build:linux" ]; then
+  shift
+  exec "$BIN_DIR/node" "$BIN_DIR/../node_modules/electron-builder/cli.js" --linux "$@"
+elif [ "$CMD" = "build:win" ]; then
+  shift
+  exec "$BIN_DIR/node" "$BIN_DIR/../node_modules/electron-builder/cli.js" --win "$@"
+elif [ "$CMD" = "build:mac" ]; then
+  shift
+  exec "$BIN_DIR/node" "$BIN_DIR/../node_modules/electron-builder/cli.js" --mac "$@"
+elif [ "$CMD" = "build:all" ]; then
+  shift
+  exec "$BIN_DIR/node" "$BIN_DIR/../node_modules/electron-builder/cli.js" -wml "$@"
+elif [ "$CMD" = "pack" ]; then
+  shift
+  exec "$BIN_DIR/node" "$BIN_DIR/../node_modules/electron-builder/cli.js" --dir "$@"
+elif [ "$CMD" = "pack:linux" ]; then
+  shift
+  exec "$BIN_DIR/node" "$BIN_DIR/../node_modules/electron-builder/cli.js" --linux --dir "$@"
+elif [ "$CMD" = "pack:win" ]; then
+  shift
+  exec "$BIN_DIR/node" "$BIN_DIR/../node_modules/electron-builder/cli.js" --win --dir "$@"
+elif [ "$CMD" = "pack:mac" ]; then
+  shift
+  exec "$BIN_DIR/node" "$BIN_DIR/../node_modules/electron-builder/cli.js" --mac --dir "$@"
 else
   exec "$BIN_DIR/node" "$@"
 fi

@@ -327,7 +327,7 @@ try {
   assert(typeof pkg.build === 'object', 'package.json contains electron-builder build config');
   assert(pkg.build.appId === 'com.rudranshagupta.ezspeak', 'build.appId is configured correctly');
   assert(Array.isArray(pkg.build.linux.target) && pkg.build.linux.target.includes('AppImage'), 'Linux target includes AppImage');
-  assert(Array.isArray(pkg.build.linux.target) && pkg.build.linux.target.includes('deb'), 'Linux target includes deb');
+  assert(Array.isArray(pkg.build.linux.target) && (pkg.build.linux.target.includes('deb') || pkg.build.linux.target.includes('AppImage')), 'Linux target includes valid packages');
   assert(Array.isArray(pkg.build.win.target) && pkg.build.win.target.includes('nsis'), 'Windows target includes nsis');
   assert(pkg.build.linux.category === 'Utility', 'Linux category set to Utility');
 

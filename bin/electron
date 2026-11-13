@@ -1,7 +1,8 @@
 #!/bin/bash
-ELECTRON_DIR="$(dirname "$0")/../node_modules/.pnpm/electron@27.3.11_supports-color@7.2.0/node_modules/electron/dist"
+BIN_DIR="$(cd "$(dirname "$0")" && pwd)"
+ELECTRON_DIR="$BIN_DIR/../node_modules/electron/dist"
 if [ ! -f "$ELECTRON_DIR/electron" ]; then
-  ELECTRON_BIN=$(find "$(dirname "$0")/../node_modules" -name electron -type f -perm /111 2>/dev/null | grep -v "\.bin" | head -n 1)
+  ELECTRON_BIN=$(find "$BIN_DIR/../node_modules" -name electron -type f -perm /111 2>/dev/null | grep -v "\.bin" | head -n 1)
 else
   ELECTRON_BIN="$ELECTRON_DIR/electron"
 fi
