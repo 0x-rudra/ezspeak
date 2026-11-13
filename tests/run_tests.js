@@ -51,6 +51,7 @@ const filesToCheck = [
   'src/localServer.js',
   'src/localTranscription.js',
   'src/logger.js',
+  'src/snippetsManager.js',
   'src/transcription.js',
   'src/translationService.js'
 ];
@@ -340,6 +341,62 @@ try {
   assert(desktopEntry.includes('Exec="/usr/bin/listner" --minimized'), 'generateDesktopEntry includes correct exec path and minimized flag');
 } catch (e) {
   assert(false, `Packaging & Autostart test error: ${e.message}`);
+}
+
+// 14. Snippets Manager Tests
+console.log('\n[Test Suite 14: Snippets Manager]');
+try {
+  const SnippetsManager = require('../src/snippetsManager');
+  assert(typeof SnippetsManager.expandSnippets === 'function', 'expandSnippets is a function');
+  assert(typeof SnippetsManager.expandVariables === 'function', 'expandVariables is a function');
+
+  // Test variable expansion
+  const fixedDate = new Date('2026-11-14T14:30:00');
+  const varsExpanded = SnippetsManager.expandVariables('Meeting on {date} at {time} in {year}', {
+    now: fixedDate,
+    clipboard: 'clipboard content'
+  });
+  assert(varsExpanded.includes('2026-11-14'), 'expandVariables expands {date}');
+  assert(varsExpanded.includes('02:30 PM'), 'expandVariables expands {time}');
+  assert(varsExpanded.includes('2026'), 'expandVariables expands {year}');
+
+  const clipExpanded = SnippetsManager.expandVariables('Pasted: {clipboard}', { clipboard: 'test-token' });
+  assert(clipExpanded === 'Pasted: test-token', 'expandVariables expands {clipboard}');
+
+  // Test snippet expansion
+  const initialSnippets = SnippetsManager.getSnippets();
+  assert(Array.isArray(initialSnippets), 'getSnippets returns array');
+
+  // Add a test snippet
+  const testSnippet = SnippetsManager.saveSnippet({
+    trigger: 'voice shortcut test',
+    expansion: 'expanded success',
+    enabled: true
+  });
+  assert(testSnippet && testSnippet.id, 'saveSnippet assigns ID');
+
+  // Verify expansion in sentence
+  const expandedSentence = SnippetsManager.expandSnippets('Please run voice shortcut test now');
+  assert(expandedSentence === 'Please run expanded success now', 'expandSnippets replaces trigger phrase inside sentence');
+
+  // Verify case-insensitivity
+  const caseInsensitive = SnippetsManager.expandSnippets('VOICE SHORTCUT TEST');
+  assert(caseInsensitive === 'expanded success', 'expandSnippets is case-insensitive');
+
+  // Verify word boundaries (doesn't trigger on partial word)
+  const partial = SnippetsManager.expandSnippets('voice shortcut tests');
+  assert(partial === 'voice shortcut tests', 'expandSnippets respects word boundaries');
+
+  // Verify toggle
+  SnippetsManager.toggleSnippet(testSnippet.id, false);
+  const disabledExpansion = SnippetsManager.expandSnippets('voice shortcut test');
+  assert(disabledExpansion === 'voice shortcut test', 'Disabled snippet is not expanded');
+
+  // Clean up test snippet
+  const deleted = SnippetsManager.deleteSnippet(testSnippet.id);
+  assert(deleted, 'deleteSnippet successfully removes snippet');
+} catch (e) {
+  assert(false, `Snippets test error: ${e.message}`);
 }
 
 console.log('\n====================================');

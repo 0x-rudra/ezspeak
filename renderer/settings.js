@@ -547,6 +547,7 @@ function setupTabs() {
     const panels = {
         app: document.getElementById('panel-app'),
         translate: document.getElementById('panel-translate'),
+        snippets: document.getElementById('panel-snippets'),
         devices: document.getElementById('panel-devices'),
         settings: document.getElementById('panel-settings'),
         history: document.getElementById('panel-history')
@@ -569,6 +570,8 @@ function setupTabs() {
 
         if (target === 'history') {
             loadAndRenderHistory();
+        } else if (target === 'snippets') {
+            loadAndRenderSnippets();
         } else if (target === 'app') {
             loadLatestDictationSnippet();
         } else if (target === 'devices') {
@@ -1279,11 +1282,248 @@ function setupSarvamAndStudio() {
     }
 }
 
+// ─── Snippets Manager ────────────────────────────────────────────────────────
+let cachedSnippets = [];
+
+async function loadAndRenderSnippets() {
+    try {
+        if (window.electronAPI && window.electronAPI.getSnippets) {
+            cachedSnippets = await window.electronAPI.getSnippets() || [];
+        }
+    } catch (e) {
+        console.error('Error loading snippets:', e);
+        cachedSnippets = [];
+    }
+    const searchInput = document.getElementById('snippetSearchInput');
+    const query = searchInput ? searchInput.value.trim().toLowerCase() : '';
+    renderSnippetsList(query);
+}
+
+function escapeSnippetHtml(text) {
+    if (!text) return '';
+    return String(text)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
+function highlightSnippetVariables(text) {
+    const escaped = escapeSnippetHtml(text);
+    return escaped.replace(/(\{(date|time|datetime|year|clipboard)\})/gi, '<span class="var-tag-highlight">$1</span>');
+}
+
+function renderSnippetsList(query = '') {
+    const container = document.getElementById('snippetsListContainer');
+    const countBadge = document.getElementById('snippetsCountBadge');
+    if (!container) return;
+
+    let list = cachedSnippets;
+    if (query) {
+        list = list.filter(s => 
+            (s.trigger && s.trigger.toLowerCase().includes(query)) ||
+            (s.expansion && s.expansion.toLowerCase().includes(query))
+        );
+    }
+
+    if (countBadge) {
+        countBadge.textContent = `${list.length} snippet${list.length === 1 ? '' : 's'}`;
+    }
+
+    if (list.length === 0) {
+        container.innerHTML = `
+            <div class="snippets-empty-state">
+                ${query ? 'No snippets match your search.' : 'No snippets yet. Click "+ Add Snippet" above to create your first voice shortcut!'}
+            </div>
+        `;
+        return;
+    }
+
+    container.innerHTML = list.map(item => {
+        const isEnabled = item.enabled !== false;
+        return `
+            <div class="snippet-card-item ${isEnabled ? '' : 'disabled'}" data-id="${escapeSnippetHtml(item.id)}">
+                <div class="snippet-card-top">
+                    <div class="snippet-trigger-badge">
+                        <span>🗣️</span>
+                        <span>"${escapeSnippetHtml(item.trigger)}"</span>
+                    </div>
+                    <div class="snippet-actions-row">
+                        <button type="button" class="snippet-action-btn btn-toggle-snippet" title="${isEnabled ? 'Disable snippet' : 'Enable snippet'}">
+                            <span>${isEnabled ? '✓ Enabled' : '○ Disabled'}</span>
+                        </button>
+                        <button type="button" class="snippet-action-btn btn-edit-snippet" title="Edit snippet">
+                            <span>✏️ Edit</span>
+                        </button>
+                        <button type="button" class="snippet-action-btn danger btn-delete-snippet" title="Delete snippet">
+                            <span>🗑️</span>
+                        </button>
+                    </div>
+                </div>
+                <div class="snippet-expansion-preview">${highlightSnippetVariables(item.expansion || '')}</div>
+            </div>
+        `;
+    }).join('');
+
+    // Attach actions
+    container.querySelectorAll('.snippet-card-item').forEach(card => {
+        const id = card.dataset.id;
+        const snippet = cachedSnippets.find(s => s.id === id);
+        if (!snippet) return;
+
+        const toggleBtn = card.querySelector('.btn-toggle-snippet');
+        if (toggleBtn) {
+            toggleBtn.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                try {
+                    const newStatus = snippet.enabled === false ? true : false;
+                    await window.electronAPI.toggleSnippet(id, newStatus);
+                    snippet.enabled = newStatus;
+                    renderSnippetsList(query);
+                    showToast(newStatus ? 'Snippet enabled' : 'Snippet disabled');
+                } catch (err) {
+                    showToast('Failed to toggle snippet', 'error');
+                }
+            });
+        }
+
+        const editBtn = card.querySelector('.btn-edit-snippet');
+        if (editBtn) {
+            editBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                openSnippetEditor(snippet);
+            });
+        }
+
+        const deleteBtn = card.querySelector('.btn-delete-snippet');
+        if (deleteBtn) {
+            deleteBtn.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                if (confirm(`Delete snippet "${snippet.trigger}"?`)) {
+                    try {
+                        await window.electronAPI.deleteSnippet(id);
+                        cachedSnippets = cachedSnippets.filter(s => s.id !== id);
+                        renderSnippetsList(query);
+                        showToast('Snippet deleted');
+                    } catch (err) {
+                        showToast('Failed to delete snippet', 'error');
+                    }
+                }
+            });
+        }
+    });
+}
+
+function openSnippetEditor(snippet = null) {
+    const editorCard = document.getElementById('snippetEditorCard');
+    const editorTitle = document.getElementById('snippetEditorTitle');
+    const editId = document.getElementById('snippetEditId');
+    const triggerInput = document.getElementById('snippetTriggerInput');
+    const expansionInput = document.getElementById('snippetExpansionInput');
+
+    if (!editorCard) return;
+
+    if (snippet) {
+        if (editorTitle) editorTitle.textContent = 'Edit Voice Snippet';
+        if (editId) editId.value = snippet.id;
+        if (triggerInput) triggerInput.value = snippet.trigger || '';
+        if (expansionInput) expansionInput.value = snippet.expansion || '';
+    } else {
+        if (editorTitle) editorTitle.textContent = 'Add Voice Snippet';
+        if (editId) editId.value = '';
+        if (triggerInput) triggerInput.value = '';
+        if (expansionInput) expansionInput.value = '';
+    }
+
+    editorCard.style.display = 'block';
+    if (triggerInput) triggerInput.focus();
+}
+
+function closeSnippetEditor() {
+    const editorCard = document.getElementById('snippetEditorCard');
+    if (editorCard) editorCard.style.display = 'none';
+}
+
+function setupSnippetsManager() {
+    const btnOpenAdd = document.getElementById('btnOpenAddSnippet');
+    if (btnOpenAdd) {
+        btnOpenAdd.addEventListener('click', () => openSnippetEditor(null));
+    }
+
+    const btnCancel = document.getElementById('btnCancelSnippet');
+    if (btnCancel) {
+        btnCancel.addEventListener('click', closeSnippetEditor);
+    }
+
+    const btnCancelForm = document.getElementById('btnCancelSnippetForm');
+    if (btnCancelForm) {
+        btnCancelForm.addEventListener('click', closeSnippetEditor);
+    }
+
+    // Save Snippet
+    const btnSave = document.getElementById('btnSaveSnippet');
+    if (btnSave) {
+        btnSave.addEventListener('click', async () => {
+            const editId = document.getElementById('snippetEditId')?.value || '';
+            const trigger = document.getElementById('snippetTriggerInput')?.value.trim();
+            const expansion = document.getElementById('snippetExpansionInput')?.value || '';
+
+            if (!trigger) {
+                showToast('Please enter a voice trigger phrase', 'error');
+                document.getElementById('snippetTriggerInput')?.focus();
+                return;
+            }
+
+            try {
+                const snippetPayload = {
+                    id: editId || undefined,
+                    trigger,
+                    expansion,
+                    enabled: true
+                };
+                await window.electronAPI.saveSnippet(snippetPayload);
+                closeSnippetEditor();
+                await loadAndRenderSnippets();
+                showToast('Snippet saved successfully');
+            } catch (err) {
+                showToast(err.message || 'Error saving snippet', 'error');
+            }
+        });
+    }
+
+    // Dynamic variable pills insertion
+    const varPills = document.querySelectorAll('.var-pill-btn');
+    varPills.forEach(pill => {
+        pill.addEventListener('click', () => {
+            const token = pill.dataset.var;
+            const textarea = document.getElementById('snippetExpansionInput');
+            if (!textarea || !token) return;
+
+            const start = textarea.selectionStart || 0;
+            const end = textarea.selectionEnd || 0;
+            const val = textarea.value;
+            textarea.value = val.substring(0, start) + token + val.substring(end);
+            textarea.focus();
+            textarea.selectionStart = textarea.selectionEnd = start + token.length;
+        });
+    });
+
+    // Real-time search filter
+    const searchInput = document.getElementById('snippetSearchInput');
+    if (searchInput) {
+        searchInput.addEventListener('input', () => {
+            renderSnippetsList(searchInput.value.trim().toLowerCase());
+        });
+    }
+}
+
 // ─── Initialize ──────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
     loadSettings();
     setupWindowControls();
     setupTabs();
+    setupSnippetsManager();
     setupPasswordToggles();
     setupProviderChangeListener();
     setupModelActions();

@@ -71,6 +71,18 @@
                 <span>Translate</span>
             </button>
 
+            <button class="sidebar-nav-item" data-tab="snippets">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                    <polyline points="14 2 14 8 20 8"></polyline>
+                    <line x1="16" y1="13" x2="8" y2="13"></line>
+                    <line x1="16" y1="17" x2="8" y2="17"></line>
+                    <polyline points="10 9 9 9 8 9"></polyline>
+                </svg>
+                <span>Snippets</span>
+            </button>
+
             <button class="sidebar-nav-item" data-tab="devices">
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
                     stroke-linecap="round" stroke-linejoin="round">
@@ -317,7 +329,104 @@
                 </div>
             </div>
 
-            <!-- 3. Devices & Hotkeys Panel -->
+            <!-- 3. Snippets Panel -->
+            <div class="tab-panel" id="panel-snippets" style="display: none;">
+                <div class="panel-section-header">
+                    <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                        <div>
+                            <h2>Snippets &amp; Shortcuts</h2>
+                            <p>Voice-triggered text replacements with dynamic variables</p>
+                        </div>
+                        <button type="button" class="btn-primary" id="btnOpenAddSnippet"
+                            style="display: flex; align-items: center; gap: 6px; padding: 7px 14px; font-size: 12.5px; border-radius: 7px;">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2.5">
+                                <line x1="12" y1="5" x2="12" y2="19"></line>
+                                <line x1="5" y1="12" x2="19" y2="12"></line>
+                            </svg>
+                            <span>Add Snippet</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Add / Edit Snippet Form Card (collapsible) -->
+                <div class="snippet-editor-card" id="snippetEditorCard" style="display: none;">
+                    <div class="snippet-editor-header">
+                        <span class="editor-title" id="snippetEditorTitle">Add Voice Snippet</span>
+                        <button type="button" class="btn-close-editor" id="btnCancelSnippet"
+                            title="Close editor">✕</button>
+                    </div>
+                    <div class="snippet-editor-body">
+                        <input type="hidden" id="snippetEditId" value="">
+
+                        <div class="form-group">
+                            <label for="snippetTriggerInput">Voice Trigger Phrase</label>
+                            <input type="text" id="snippetTriggerInput"
+                                placeholder="What you say (e.g. 'my email', 'client intro', 'today date')">
+                            <p class="help-text">Case-insensitive trigger phrase. Say this naturally while dictating to
+                                expand it.</p>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="snippetExpansionInput">Text Expansion</label>
+                            <textarea id="snippetExpansionInput" class="studio-textarea" rows="3"
+                                placeholder="The text that replaces the trigger at your cursor..."
+                                style="background: #141417; border: 1px solid #27272a; border-radius: 6px; padding: 8px 10px;"></textarea>
+                        </div>
+
+                        <div class="var-pills-container">
+                            <span class="var-pills-label">Insert dynamic variable:</span>
+                            <div class="var-pills-group">
+                                <button type="button" class="var-pill-btn" data-var="{date}"
+                                    title="Today's date (YYYY-MM-DD)">+ {date}</button>
+                                <button type="button" class="var-pill-btn" data-var="{time}"
+                                    title="Current time (e.g. 02:30 PM)">+ {time}</button>
+                                <button type="button" class="var-pill-btn" data-var="{datetime}" title="Date and time">+
+                                    {datetime}</button>
+                                <button type="button" class="var-pill-btn" data-var="{year}"
+                                    title="Current 4-digit year">+ {year}</button>
+                                <button type="button" class="var-pill-btn" data-var="{clipboard}"
+                                    title="System clipboard text">+ {clipboard}</button>
+                            </div>
+                        </div>
+
+                        <div class="snippet-editor-footer">
+                            <button type="button" class="btn-secondary" id="btnCancelSnippetForm">Cancel</button>
+                            <button type="button" class="btn-primary" id="btnSaveSnippet">Save Snippet</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Snippets Search & Count Toolbar -->
+                <div class="snippets-toolbar-row">
+                    <div class="snippets-search-box">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <circle cx="11" cy="11" r="8"></circle>
+                            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                        </svg>
+                        <input type="text" id="snippetSearchInput" placeholder="Filter snippets by trigger or text...">
+                    </div>
+                    <span class="snippets-count-badge" id="snippetsCountBadge">0 snippets</span>
+                </div>
+
+                <!-- Snippets List -->
+                <div class="snippets-list-container" id="snippetsListContainer">
+                    <!-- Populated dynamically via JS -->
+                </div>
+
+                <!-- Tip Card -->
+                <div class="snippet-info-tip">
+                    <span class="tip-icon">💡</span>
+                    <div class="tip-text">
+                        <strong>Live Expansion:</strong> Say your trigger phrase while dictating, e.g., <em>"Please send
+                            to my email"</em> expands directly into <em>"Please send to user@example.com"</em> in real
+                        time at your cursor!
+                    </div>
+                </div>
+            </div>
+
+            <!-- 4. Devices & Hotkeys Panel -->
             <div class="tab-panel" id="panel-devices" style="display: none;">
                 <div class="panel-section-header">
                     <h2>Devices &amp; Hotkeys</h2>

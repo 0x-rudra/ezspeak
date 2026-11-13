@@ -1614,3 +1614,321 @@ input#hotkey.capturing {
 .studio-box.translated .studio-textarea {
     color: #ffedd5;
 }
+
+/* ─── Snippets Manager Styles ────────────────────────────────────── */
+.btn-primary {
+    background: #10b981;
+    color: #ffffff;
+    border: 1px solid transparent;
+    padding: 7px 14px;
+    border-radius: 7px;
+    font-size: 12.5px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.15s ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+
+.btn-primary:hover {
+    background: #059669;
+}
+
+.btn-secondary {
+    background: #27272a;
+    border: 1px solid #3f3f46;
+    color: #f4f4f5;
+    padding: 7px 14px;
+    border-radius: 7px;
+    font-size: 12.5px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.15s ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+
+.btn-secondary:hover {
+    background: #323238;
+}
+
+.snippet-editor-card {
+    background: #1a1a1e;
+    border: 1px solid #3f3f46;
+    border-radius: 10px;
+    padding: 16px;
+    margin-bottom: 16px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+    animation: fadeInSlide 0.2s ease-out;
+}
+
+@keyframes fadeInSlide {
+    from { opacity: 0; transform: translateY(-8px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.snippet-editor-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 14px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #27272a;
+}
+
+.editor-title {
+    font-size: 13.5px;
+    font-weight: 700;
+    color: #ffffff;
+}
+
+.btn-close-editor {
+    background: transparent;
+    border: none;
+    color: #71717a;
+    font-size: 14px;
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 4px;
+    transition: all 0.15s ease;
+}
+
+.btn-close-editor:hover {
+    color: #f4f4f5;
+    background: #27272a;
+}
+
+.snippet-editor-body {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.var-pills-container {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin: 4px 0 8px 0;
+}
+
+.var-pills-label {
+    font-size: 11px;
+    color: #71717a;
+    font-weight: 500;
+}
+
+.var-pills-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.var-pill-btn {
+    background: rgba(16, 185, 129, 0.1);
+    border: 1px solid rgba(16, 185, 129, 0.3);
+    color: #34d399;
+    padding: 3px 8px;
+    border-radius: 5px;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: monospace;
+    transition: all 0.15s ease;
+}
+
+.var-pill-btn:hover {
+    background: rgba(16, 185, 129, 0.25);
+    color: #a7f3d0;
+    transform: translateY(-1px);
+}
+
+.snippet-editor-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 6px;
+}
+
+.snippets-toolbar-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+    gap: 10px;
+}
+
+.snippets-search-box {
+    position: relative;
+    flex: 1;
+    display: flex;
+    align-items: center;
+}
+
+.snippets-search-box svg {
+    position: absolute;
+    left: 10px;
+    color: #71717a;
+    pointer-events: none;
+}
+
+.snippets-search-box input {
+    width: 100%;
+    padding: 7px 10px 7px 32px;
+    background: #18181b;
+    border: 1px solid #27272a;
+    border-radius: 7px;
+    color: #f4f4f5;
+    font-size: 12px;
+    outline: none;
+    font-family: inherit;
+    transition: border-color 0.15s ease;
+}
+
+.snippets-search-box input:focus {
+    border-color: #10b981;
+}
+
+.snippets-count-badge {
+    font-size: 11px;
+    font-weight: 600;
+    color: #a1a1aa;
+    background: #1f1f23;
+    border: 1px solid #27272a;
+    padding: 4px 8px;
+    border-radius: 6px;
+    white-space: nowrap;
+}
+
+.snippets-list-container {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 14px;
+}
+
+.snippet-card-item {
+    background: #1a1a1e;
+    border: 1px solid #27272a;
+    border-radius: 8px;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    transition: border-color 0.15s ease;
+}
+
+.snippet-card-item:hover {
+    border-color: #3f3f46;
+}
+
+.snippet-card-item.disabled {
+    opacity: 0.55;
+    border-style: dashed;
+}
+
+.snippet-card-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.snippet-trigger-badge {
+    background: rgba(99, 102, 241, 0.15);
+    border: 1px solid rgba(99, 102, 241, 0.35);
+    color: #818cf8;
+    padding: 3px 8px;
+    border-radius: 5px;
+    font-size: 12px;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.snippet-actions-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.snippet-action-btn {
+    background: transparent;
+    border: 1px solid #27272a;
+    color: #a1a1aa;
+    padding: 4px 8px;
+    border-radius: 5px;
+    font-size: 11px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.snippet-action-btn:hover {
+    background: #27272a;
+    color: #ffffff;
+}
+
+.snippet-action-btn.danger:hover {
+    background: rgba(239, 68, 68, 0.15);
+    border-color: #ef4444;
+    color: #ef4444;
+}
+
+.snippet-expansion-preview {
+    font-size: 12.5px;
+    color: #e4e4e7;
+    background: #141417;
+    border: 1px solid #27272a;
+    border-radius: 6px;
+    padding: 8px 10px;
+    white-space: pre-wrap;
+    word-break: break-word;
+    line-height: 1.4;
+}
+
+.var-tag-highlight {
+    background: rgba(16, 185, 129, 0.18);
+    color: #34d399;
+    padding: 1px 4px;
+    border-radius: 3px;
+    font-family: monospace;
+    font-size: 11.5px;
+}
+
+.snippet-info-tip {
+    background: rgba(16, 185, 129, 0.05);
+    border: 1px solid rgba(16, 185, 129, 0.15);
+    border-radius: 8px;
+    padding: 10px 12px;
+    display: flex;
+    gap: 8px;
+    align-items: flex-start;
+    font-size: 11.5px;
+    color: #a1a1aa;
+    line-height: 1.45;
+}
+
+.snippet-info-tip .tip-icon {
+    font-size: 14px;
+    flex-shrink: 0;
+}
+
+.snippets-empty-state {
+    padding: 30px 16px;
+    text-align: center;
+    color: #71717a;
+    font-size: 12.5px;
+    background: #1a1a1e;
+    border: 1px dashed #27272a;
+    border-radius: 8px;
+}
+

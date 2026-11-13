@@ -11,7 +11,7 @@ function resolveConfigDir() {
     if (app && typeof app.getPath === 'function') {
       try {
         targetDir = app.getPath('userData');
-      } catch (e) {}
+      } catch (e) { }
     }
     if (!targetDir) {
       const configHome = process.env.XDG_CONFIG_HOME || path.join(os.homedir(), '.config');
@@ -60,7 +60,12 @@ const store = new Store({
     sampleRate: 16000,
     channels: 1,
     bitDepth: 16,
-    transcriptionHistory: []
+    transcriptionHistory: [],
+    snippets: [
+      { id: 'default-email', trigger: 'my email', expansion: 'user@example.com', enabled: true },
+      { id: 'default-date', trigger: 'today date', expansion: '{date}', enabled: true },
+      { id: 'default-time', trigger: 'current time', expansion: '{time}', enabled: true }
+    ]
   }
 });
 
@@ -73,7 +78,7 @@ function encryptSecret(plaintext) {
     if (safeStorage && typeof safeStorage.isEncryptionAvailable === 'function' && safeStorage.isEncryptionAvailable()) {
       return 'enc:' + safeStorage.encryptString(trimmed).toString('base64');
     }
-  } catch (e) {}
+  } catch (e) { }
   // safeStorage not available — storing as plaintext. Log once so the user is aware.
   const Logger = require('./logger');
   Logger.warn('[Config] safeStorage unavailable — API key stored as plaintext in config file. Upgrade your OS keyring for encryption.');
@@ -344,6 +349,21 @@ class Config {
 
   static clearHistory() {
     store.set('transcriptionHistory', []);
+  }
+
+  // ─── Snippets ────────────────────────────────────────────────────
+  static getSnippets() {
+    return store.get('snippets', [
+      { id: 'default-email', trigger: 'my email', expansion: 'user@example.com', enabled: true },
+      { id: 'default-date', trigger: 'today date', expansion: '{date}', enabled: true },
+      { id: 'default-time', trigger: 'current time', expansion: '{time}', enabled: true }
+    ]);
+  }
+
+  static setSnippets(snippets) {
+    if (Array.isArray(snippets)) {
+      store.set('snippets', snippets);
+    }
   }
 }
 

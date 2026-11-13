@@ -29,6 +29,7 @@ if (!app) {
   const LocalServer = require('./src/localServer');
   const TranslationService = require('./src/translationService');
   const Autostart = require('./src/autostart');
+  const SnippetsManager = require('./src/snippetsManager');
 
   // GPU acceleration enabled by default; optional flag for environments with buggy GPU drivers
   if (process.argv.includes('--disable-gpu') || process.env.LISTNER_DISABLE_GPU === '1') {
@@ -289,6 +290,12 @@ if (!app) {
         label: 'Settings',
         click: () => {
           showMainWindow('settings');
+        }
+      },
+      {
+        label: 'Snippets',
+        click: () => {
+          showMainWindow('snippets');
         }
       },
       {
@@ -624,6 +631,9 @@ if (!app) {
       if ((!cleaned || cleaned.trim().length === 0) && liveAccumulatedText) {
         cleaned = liveAccumulatedText;
       }
+      if (cleaned) {
+        cleaned = SnippetsManager.expandSnippets(cleaned);
+      }
 
       if (cleaned && cleaned.trim().length > 0) {
         const fullText = cleaned.trim();
@@ -748,27 +758,30 @@ if (!app) {
         return;
       }
 
-      if (cleaned && cleaned.length > 0 && isRecording) {
-        liveAccumulatedText = cleaned;
-        updateIndicatorLiveText(cleaned);
+      // Expand snippets on live stream so cursor insertion matches expanded text
+      const expandedText = cleaned ? SnippetsManager.expandSnippets(cleaned) : '';
+
+      if (expandedText && expandedText.length > 0 && isRecording) {
+        liveAccumulatedText = expandedText;
+        updateIndicatorLiveText(expandedText);
 
         if (settingsWindow && !settingsWindow.isDestroyed()) {
           try {
-            settingsWindow.webContents.send('live-dictation-snippet', cleaned);
+            settingsWindow.webContents.send('live-dictation-snippet', expandedText);
           } catch (e) { }
         }
 
         // Live dictation: type newly spoken words at cursor pointer every 2-3 sec
-        const delta = getNewTextDelta(cleaned, liveTypedText);
+        const delta = getNewTextDelta(expandedText, liveTypedText);
         if (delta && delta.trim().length > 0 && isRecording) {
           const textToInsert = (liveTypedText ? ' ' : '') + delta.trim();
-          liveTypedText = cleaned;
+          liveTypedText = expandedText;
           Logger.log(`[LiveDictation] Typing delta at cursor pointer: "${textToInsert}"`);
           ClipboardManager.typeWordByWord(textToInsert);
         }
 
         // Always sync full text to clipboard so user can press Ctrl+V anywhere even if no pointer was focused
-        ClipboardManager.syncClipboard(cleaned.trim());
+        ClipboardManager.syncClipboard(expandedText.trim());
       }
     } catch (err) {
       Logger.warn('Live slice speech check warning:', err.message);
@@ -1105,6 +1118,23 @@ if (!app) {
       hideRecordingIndicator();
     }, 5000);
     return true;
+  });
+
+  // ─── Snippets Manager IPC Handlers ─────────────────────────────
+  ipcMain.handle('get-snippets', () => {
+    return SnippetsManager.getSnippets();
+  });
+
+  ipcMain.handle('save-snippet', (event, snippet) => {
+    return SnippetsManager.saveSnippet(snippet);
+  });
+
+  ipcMain.handle('delete-snippet', (event, id) => {
+    return SnippetsManager.deleteSnippet(id);
+  });
+
+  ipcMain.handle('toggle-snippet', (event, id, enabled) => {
+    return SnippetsManager.toggleSnippet(id, enabled);
   });
 
   // App lifecycle

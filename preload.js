@@ -98,5 +98,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getIndicatorPosition: () => ipcRenderer.invoke('get-indicator-position'),
   onTranslationComplete: (callback) => {
     ipcRenderer.on('translation-complete', (event, data) => callback(data));
-  }
+  },
+
+  // Snippets Manager
+  getSnippets: () => ipcRenderer.invoke('get-snippets'),
+  saveSnippet: (snippet) => ipcRenderer.invoke('save-snippet', snippet),
+  deleteSnippet: (id) => ipcRenderer.invoke('delete-snippet', id),
+  toggleSnippet: (id, enabled) => ipcRenderer.invoke('toggle-snippet', id, enabled)
 });
