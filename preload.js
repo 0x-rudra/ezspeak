@@ -104,5 +104,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getSnippets: () => ipcRenderer.invoke('get-snippets'),
   saveSnippet: (snippet) => ipcRenderer.invoke('save-snippet', snippet),
   deleteSnippet: (id) => ipcRenderer.invoke('delete-snippet', id),
-  toggleSnippet: (id, enabled) => ipcRenderer.invoke('toggle-snippet', id, enabled)
+  toggleSnippet: (id, enabled) => ipcRenderer.invoke('toggle-snippet', id, enabled),
+
+  // Spoken Punctuation & Formatting Commands
+  getSpokenPunctuation: () => ipcRenderer.invoke('get-spoken-punctuation'),
+  setSpokenPunctuation: (enabled) => ipcRenderer.invoke('set-spoken-punctuation', enabled)
 });

@@ -30,6 +30,7 @@ if (!app) {
   const TranslationService = require('./src/translationService');
   const Autostart = require('./src/autostart');
   const SnippetsManager = require('./src/snippetsManager');
+  const SpokenPunctuation = require('./src/spokenPunctuation');
 
   // GPU acceleration enabled by default; optional flag for environments with buggy GPU drivers
   if (process.argv.includes('--disable-gpu') || process.env.LISTNER_DISABLE_GPU === '1') {
@@ -632,6 +633,7 @@ if (!app) {
         cleaned = liveAccumulatedText;
       }
       if (cleaned) {
+        cleaned = SpokenPunctuation.format(cleaned);
         cleaned = SnippetsManager.expandSnippets(cleaned);
       }
 
@@ -758,8 +760,9 @@ if (!app) {
         return;
       }
 
-      // Expand snippets on live stream so cursor insertion matches expanded text
-      const expandedText = cleaned ? SnippetsManager.expandSnippets(cleaned) : '';
+      // Format spoken punctuation and commands, then expand snippets on live stream
+      const formatted = cleaned ? SpokenPunctuation.format(cleaned) : '';
+      const expandedText = formatted ? SnippetsManager.expandSnippets(formatted) : '';
 
       if (expandedText && expandedText.length > 0 && isRecording) {
         liveAccumulatedText = expandedText;
@@ -1135,6 +1138,16 @@ if (!app) {
 
   ipcMain.handle('toggle-snippet', (event, id, enabled) => {
     return SnippetsManager.toggleSnippet(id, enabled);
+  });
+
+  // ─── Spoken Punctuation & Formatting Commands IPC Handlers ──────
+  ipcMain.handle('get-spoken-punctuation', () => {
+    return Config.getSpokenPunctuation();
+  });
+
+  ipcMain.handle('set-spoken-punctuation', (event, enabled) => {
+    Config.setSpokenPunctuation(enabled);
+    return true;
   });
 
   // App lifecycle

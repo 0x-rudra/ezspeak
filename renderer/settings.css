@@ -1932,3 +1932,59 @@ input#hotkey.capturing {
     border-radius: 8px;
 }
 
+/* ─── Spoken Commands Details & Table ────────────────────────────── */
+.spoken-commands-details {
+    margin-top: 8px;
+    background: #141417;
+    border: 1px solid #27272a;
+    border-radius: 7px;
+    padding: 8px 12px;
+}
+
+.spoken-commands-summary {
+    font-size: 11.5px;
+    font-weight: 600;
+    color: #10b981;
+    cursor: pointer;
+    user-select: none;
+    outline: none;
+}
+
+.spoken-commands-summary:hover {
+    color: #34d399;
+}
+
+.spoken-commands-table-wrapper {
+    margin-top: 10px;
+    overflow-x: auto;
+}
+
+.spoken-commands-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 11.5px;
+}
+
+.spoken-commands-table th {
+    text-align: left;
+    padding: 4px 8px;
+    color: #71717a;
+    font-weight: 600;
+    border-bottom: 1px solid #27272a;
+}
+
+.spoken-commands-table td {
+    padding: 5px 8px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    color: #d4d4d8;
+}
+
+.spoken-commands-table code {
+    background: #1e1e24;
+    padding: 2px 5px;
+    border-radius: 4px;
+    color: #818cf8;
+    font-family: monospace;
+    font-size: 11px;
+}
+

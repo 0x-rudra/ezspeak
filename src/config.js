@@ -61,6 +61,7 @@ const store = new Store({
     channels: 1,
     bitDepth: 16,
     transcriptionHistory: [],
+    spokenPunctuation: true,
     snippets: [
       { id: 'default-email', trigger: 'my email', expansion: 'user@example.com', enabled: true },
       { id: 'default-date', trigger: 'today date', expansion: '{date}', enabled: true },
@@ -364,6 +365,15 @@ class Config {
     if (Array.isArray(snippets)) {
       store.set('snippets', snippets);
     }
+  }
+
+  // ─── Spoken Punctuation & Formatting Commands ────────────────────
+  static getSpokenPunctuation() {
+    return store.get('spokenPunctuation', true);
+  }
+
+  static setSpokenPunctuation(enabled) {
+    store.set('spokenPunctuation', Boolean(enabled));
   }
 }
 

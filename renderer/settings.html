@@ -229,6 +229,39 @@
                     </div>
                 </div>
 
+                <!-- Spoken Punctuation & Formatting Commands Card -->
+                <div class="settings-block" style="margin-top: 14px;">
+                    <div class="settings-block-header">
+                        <span class="settings-block-title">✍️ Spoken Punctuation &amp; Formatting</span>
+                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 12.5px; color: #d4d4d8;">
+                            <input type="checkbox" id="spokenPunctuationToggle" style="accent-color: #10b981; width: 16px; height: 16px;" checked>
+                            <span id="spokenPunctuationLabel">Enabled</span>
+                        </label>
+                    </div>
+                    <p class="help-text" style="margin-bottom: 8px;">
+                        Speak punctuation and layout commands naturally (e.g. <em>"comma"</em>, <em>"period"</em>, <em>"new line"</em>, <em>"new paragraph"</em>, <em>"all caps urgent"</em>).
+                    </p>
+                    <details class="spoken-commands-details">
+                        <summary class="spoken-commands-summary">View Spoken Voice Commands Cheat Sheet ▾</summary>
+                        <div class="spoken-commands-table-wrapper">
+                            <table class="spoken-commands-table">
+                                <thead>
+                                    <tr><th>Voice Command</th><th>Result</th><th>Voice Command</th><th>Result</th></tr>
+                                </thead>
+                                <tbody>
+                                    <tr><td><code>"period"</code> / <code>"full stop"</code></td><td><strong>.</strong></td><td><code>"new line"</code></td><td>Line break (↵)</td></tr>
+                                    <tr><td><code>"comma"</code></td><td><strong>,</strong></td><td><code>"new paragraph"</code></td><td>Paragraph break (↵↵)</td></tr>
+                                    <tr><td><code>"question mark"</code></td><td><strong>?</strong></td><td><code>"all caps &lt;word&gt;"</code></td><td>UPPERCASE</td></tr>
+                                    <tr><td><code>"exclamation point"</code></td><td><strong>!</strong></td><td><code>"capitalize &lt;word&gt;"</code></td><td>Title Case</td></tr>
+                                    <tr><td><code>"colon"</code></td><td><strong>:</strong></td><td><code>"open / close quote"</code></td><td><strong>"..."</strong></td></tr>
+                                    <tr><td><code>"semicolon"</code></td><td><strong>;</strong></td><td><code>"open / close paren"</code></td><td><strong>(...)</strong></td></tr>
+                                    <tr><td><code>"hyphen"</code> / <code>"dash"</code></td><td><strong>-</strong></td><td><code>"at sign"</code> / <code>"hashtag"</code></td><td><strong>@ / #</strong></td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </details>
+                </div>
+
                 <!-- Recent Dictation Snippet -->
                 <div class="recent-dictation-card">
                     <div class="recent-header">

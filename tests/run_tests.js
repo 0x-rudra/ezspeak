@@ -52,6 +52,7 @@ const filesToCheck = [
   'src/localTranscription.js',
   'src/logger.js',
   'src/snippetsManager.js',
+  'src/spokenPunctuation.js',
   'src/transcription.js',
   'src/translationService.js'
 ];
@@ -397,6 +398,53 @@ try {
   assert(deleted, 'deleteSnippet successfully removes snippet');
 } catch (e) {
   assert(false, `Snippets test error: ${e.message}`);
+}
+
+// 15. Spoken Punctuation & Formatting Commands Tests
+console.log('\n[Test Suite 15: Spoken Punctuation & Formatting Commands]');
+try {
+  const SpokenPunctuation = require('../src/spokenPunctuation');
+  const Config = require('../src/config');
+  assert(typeof SpokenPunctuation.format === 'function', 'SpokenPunctuation.format is a function');
+
+  // 1. Spoken Punctuation Marks
+  const punct1 = SpokenPunctuation.format('hello comma how are you question mark', { force: true });
+  assert(punct1 === 'Hello, how are you?', 'Replaces comma and question mark with proper spacing');
+
+  const punct2 = SpokenPunctuation.format('warning exclamation point new line stop period', { force: true });
+  assert(punct2 === 'Warning!\nStop.', 'Replaces exclamation point, new line, and period');
+
+  const punct3 = SpokenPunctuation.format('first full stop second semicolon third colon details', { force: true });
+  assert(punct3 === 'First. Second; third: details', 'Replaces full stop, semicolon, and colon');
+
+  // 2. Formatting Commands
+  const fmt1 = SpokenPunctuation.format('this is all caps urgent attention', { force: true });
+  assert(fmt1 === 'This is URGENT attention', 'Formats "all caps <word>" into uppercase');
+
+  const fmt2 = SpokenPunctuation.format('day is capitalize tuesday', { force: true });
+  assert(fmt2 === 'Day is Tuesday', 'Formats "capitalize <word>" into title case');
+
+  const fmt3 = SpokenPunctuation.format('first paragraph new paragraph second paragraph', { force: true });
+  assert(fmt3 === 'First paragraph\n\nSecond paragraph', 'Formats "new paragraph" into double newlines');
+
+  // 3. Brackets, quotes & symbols
+  const b1 = SpokenPunctuation.format('open parenthesis in brackets close parenthesis', { force: true });
+  assert(b1 === '(in brackets)', 'Formats parentheses without extra spaces inside');
+
+  const b2 = SpokenPunctuation.format('open quote wise close quote', { force: true });
+  assert(b2 === '"wise"', 'Formats quotes correctly');
+
+  // 4. Contextual Protection
+  const ctx = SpokenPunctuation.format('during that period of time period', { force: true });
+  assert(ctx === 'During that period of time.', 'Preserves "period of time" phrase while replacing sentence-ending period');
+
+  // 5. Config Toggle Behavior
+  Config.setSpokenPunctuation(false);
+  const disabled = SpokenPunctuation.format('hello comma world period');
+  assert(disabled === 'hello comma world period', 'Does not alter text when spokenPunctuation is disabled in config');
+  Config.setSpokenPunctuation(true);
+} catch (e) {
+  assert(false, `Spoken Punctuation test error: ${e.message}`);
 }
 
 console.log('\n====================================');

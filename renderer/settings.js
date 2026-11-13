@@ -1518,12 +1518,43 @@ function setupSnippetsManager() {
     }
 }
 
+// ─── Spoken Punctuation & Formatting ─────────────────────────────────────────
+async function setupSpokenPunctuation() {
+    const toggle = document.getElementById('spokenPunctuationToggle');
+    const label = document.getElementById('spokenPunctuationLabel');
+    if (!toggle) return;
+
+    try {
+        if (window.electronAPI && window.electronAPI.getSpokenPunctuation) {
+            const enabled = await window.electronAPI.getSpokenPunctuation();
+            toggle.checked = enabled !== false;
+            if (label) label.textContent = toggle.checked ? 'Enabled' : 'Disabled';
+        }
+    } catch (e) {
+        toggle.checked = true;
+    }
+
+    toggle.addEventListener('change', async () => {
+        const isChecked = toggle.checked;
+        if (label) label.textContent = isChecked ? 'Enabled' : 'Disabled';
+        try {
+            if (window.electronAPI && window.electronAPI.setSpokenPunctuation) {
+                await window.electronAPI.setSpokenPunctuation(isChecked);
+                showToast(isChecked ? 'Spoken punctuation enabled' : 'Spoken punctuation disabled');
+            }
+        } catch (e) {
+            showToast('Failed to update spoken punctuation setting', 'error');
+        }
+    });
+}
+
 // ─── Initialize ──────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
     loadSettings();
     setupWindowControls();
     setupTabs();
     setupSnippetsManager();
+    setupSpokenPunctuation();
     setupPasswordToggles();
     setupProviderChangeListener();
     setupModelActions();
