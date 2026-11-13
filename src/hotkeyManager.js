@@ -16,9 +16,10 @@ try {
 }
 
 class HotkeyManager {
-  constructor(onRecordStart, onRecordStop, globalShortcut) {
+  constructor(onRecordStart, onRecordStop, globalShortcut, onRecordCancel) {
     this.onRecordStart = onRecordStart;
     this.onRecordStop = onRecordStop;
+    this.onRecordCancel = onRecordCancel || null; // Optional cancel callback (Escape)
     this.globalShortcut = globalShortcut;
 
     this.isRecording = false;
@@ -279,6 +280,11 @@ class HotkeyManager {
           const found = Object.keys(UiohookKey).find(k => k.toLowerCase() === part.toLowerCase());
           if (found && UiohookKey[found]) {
             conditions.push([UiohookKey[found]]);
+          } else {
+            // Unknown key name — log a warning and reject the whole hotkey to prevent
+            // a typo'd combo (e.g. Ctrl+Foo) from silently firing on a single modifier.
+            Logger.warn(`[HotkeyManager] Unknown key in hotkey string: "${part}" (from "${hotkeyString}"). Hotkey will not be registered via uiohook.`);
+            return null;
           }
         }
       }
@@ -322,18 +328,21 @@ class HotkeyManager {
 
   async handleStart() {
     if (this.isRecording) return;
-    this.isRecording = true;
 
-    // Register Escape key to cancel dictation while recording
-    this.registerEscape();
-
+    // Set state AFTER a successful start to avoid desync if onRecordStart returns early
     if (this.onRecordStart) {
       try {
         await this.onRecordStart();
       } catch (err) {
         Logger.error('Error in onRecordStart:', err);
+        // onRecordStart failed — do NOT flip to recording state
+        return;
       }
     }
+
+    this.isRecording = true;
+    // Register Escape key to cancel (discard) dictation while recording
+    this.registerEscape();
   }
 
   async handleStop() {
@@ -352,13 +361,32 @@ class HotkeyManager {
     }
   }
 
+  /**
+   * Cancel recording: discards audio without transcribing or pasting.
+   * Called by Escape key or explicit cancel requests.
+   */
+  async handleCancel() {
+    if (!this.isRecording) return;
+    this.isRecording = false;
+    this.unregisterEscape();
+    Logger.log('HotkeyManager: Recording cancelled (audio discarded)');
+
+    if (this.onRecordCancel) {
+      try {
+        await this.onRecordCancel();
+      } catch (err) {
+        Logger.error('Error in onRecordCancel:', err);
+      }
+    }
+  }
+
   registerEscape() {
     if (this.globalShortcut && !this.isEscapeRegistered) {
       try {
         const ok = this.globalShortcut.register('Escape', () => {
           if (this.isRecording) {
-            Logger.log('Escape key pressed -> Canceling dictation');
-            this.handleStop();
+            Logger.log('Escape key pressed -> Canceling dictation (audio discarded)');
+            this.handleCancel();
           }
         });
         if (ok) this.isEscapeRegistered = true;

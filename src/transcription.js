@@ -7,11 +7,16 @@ const Config = require('./config');
 const Logger = require('./logger');
 const LocalTranscriptionService = require('./localTranscription');
 
-async function postWithRetry(url, data, config, maxRetries = 3) {
+/**
+ * Post with retry, rebuilding the FormData on each attempt.
+ * formDataFactory is a function () => { form, headers } so the stream is fresh per attempt.
+ */
+async function postWithRetry(url, formDataFactory, axiosConfig, maxRetries = 3) {
   let attempt = 0;
   while (attempt < maxRetries) {
+    const { form, headers } = formDataFactory();
     try {
-      return await axios.post(url, data, config);
+      return await axios.post(url, form, { ...axiosConfig, headers: { ...headers, ...axiosConfig.headers } });
     } catch (err) {
       attempt++;
       const status = err.response ? err.response.status : null;
@@ -29,11 +34,11 @@ async function postWithRetry(url, data, config, maxRetries = 3) {
 class TranscriptionService {
   constructor() {
     this.localService = new LocalTranscriptionService();
-    Logger.log('TranscriptionService initialized with BYOK support');
+    Logger.log('TranscriptionService initialized with Sarvam AI STT & Local Whisper');
   }
 
   /**
-   * Main transcribe entrypoint - routes to local or cloud BYOK
+   * Main transcribe entrypoint - routes to local offline whisper or Sarvam AI
    * @param {string} audioFilePath - Path to the audio file
    * @returns {Promise<string>} - Transcribed text
    */
@@ -44,7 +49,7 @@ class TranscriptionService {
     if (transcriptionMode === 'offline') {
       return await this.transcribeOffline(audioFilePath);
     } else {
-      return await this.transcribeCloudBYOK(audioFilePath);
+      return await this.transcribeSarvam(audioFilePath);
     }
   }
 
@@ -59,50 +64,19 @@ class TranscriptionService {
   }
 
   /**
-   * Transcribe audio file using Cloud BYOK (OpenAI, Groq, or Custom Endpoint)
+   * Transcribe audio file using Sarvam AI Speech-to-Text API
    * @param {string} audioFilePath - Path to the audio file
    * @returns {Promise<string>} - Transcribed text
    */
-  async transcribeCloudBYOK(audioFilePath) {
-    const provider = Config.getCloudProvider();
-    Logger.log(`Using Cloud BYOK with provider: ${provider}`);
+  async transcribeSarvam(audioFilePath) {
+    const apiUrl = 'https://api.sarvam.ai/speech-to-text';
+    const apiKey = (Config.getSarvamApiKey() || '').trim();
+    const modelName = Config.getSarvamSTTModel() || 'saaras:v2';
+    const sourceLang = Config.getSarvamSourceLang() || 'en-IN';
 
-    let apiUrl = '';
-    let apiKey = '';
-    let modelName = '';
-    let providerDisplayName = '';
-
-    if (provider === 'groq') {
-      providerDisplayName = 'Groq Whisper';
-      apiUrl = 'https://api.groq.com/openai/v1/audio/transcriptions';
-      apiKey = Config.getGroqApiKey();
-      modelName = Config.getGroqModel() || 'whisper-large-v3-turbo';
-
-      if (!apiKey) {
-        Logger.error('Groq API key missing');
-        throw new Error('Groq API key not configured. Please enter your Groq API key in Settings.');
-      }
-    } else if (provider === 'custom') {
-      providerDisplayName = 'Custom OpenAI-Compatible API';
-      apiUrl = Config.getCustomEndpoint() || 'http://localhost:8000/v1/audio/transcriptions';
-      apiKey = Config.getCustomApiKey();
-      modelName = Config.getCustomModel() || 'whisper-1';
-
-      if (!apiUrl) {
-        Logger.error('Custom endpoint URL missing');
-        throw new Error('Custom API endpoint URL not configured. Please set the endpoint URL in Settings.');
-      }
-    } else {
-      // Default to OpenAI
-      providerDisplayName = 'OpenAI Whisper';
-      apiUrl = 'https://api.openai.com/v1/audio/transcriptions';
-      apiKey = Config.getOpenAIApiKey() || Config.getApiKey();
-      modelName = Config.getOpenAIModel() || 'whisper-1';
-
-      if (!apiKey) {
-        Logger.error('OpenAI API key missing');
-        throw new Error('OpenAI API key not configured. Please enter your OpenAI API key in Settings.');
-      }
+    if (!apiKey) {
+      Logger.error('Sarvam AI API key missing');
+      throw new Error('Sarvam AI API key not configured. Please enter your Sarvam AI API key in Settings.');
     }
 
     if (!fs.existsSync(audioFilePath)) {
@@ -111,21 +85,16 @@ class TranscriptionService {
     }
 
     const stats = fs.statSync(audioFilePath);
-    const MAX_AUDIO_BYTES = 25 * 1024 * 1024; // 25 MB OpenAI limit
+    const MAX_AUDIO_BYTES = 25 * 1024 * 1024; // 25 MB limit
     if (stats.size > MAX_AUDIO_BYTES) {
       Logger.error(`Audio file too large: ${(stats.size / (1024 * 1024)).toFixed(1)}MB exceeds 25MB limit`);
       throw new Error(`Audio file exceeds 25MB limit (${(stats.size / (1024 * 1024)).toFixed(1)}MB). Please dictate in shorter segments.`);
     }
 
-    if (provider === 'custom' && apiUrl.startsWith('http://') && !apiUrl.includes('localhost') && !apiUrl.includes('127.0.0.1')) {
-      Logger.warn(`[Security Warning] Custom endpoint uses unencrypted HTTP with an API key: ${apiUrl}`);
-    }
-
     Logger.log(`Audio file: ${path.basename(audioFilePath)}, Size: ${(stats.size / 1024).toFixed(2)} KB`);
-    Logger.log(`Target: ${providerDisplayName} (${modelName}) at ${apiUrl}`);
+    Logger.log(`Target: Sarvam AI STT (${modelName}) at ${apiUrl}`);
 
     try {
-      const formData = new FormData();
       const fileExtension = path.extname(audioFilePath).toLowerCase();
       const mimeType = fileExtension === '.wav' ? 'audio/wav' :
                        fileExtension === '.webm' ? 'audio/webm' :
@@ -134,39 +103,42 @@ class TranscriptionService {
                        fileExtension === '.ogg' ? 'audio/ogg' :
                        'audio/webm';
 
-      formData.append('file', fs.createReadStream(audioFilePath), {
-        filename: path.basename(audioFilePath),
-        contentType: mimeType
-      });
-      formData.append('model', modelName);
-      formData.append('response_format', 'json');
-
-      const headers = {
-        ...formData.getHeaders()
+      // Factory: build a fresh FormData+stream for each attempt (consumed streams cannot be reused)
+      const makeForm = () => {
+        const form = new FormData();
+        form.append('file', fs.createReadStream(audioFilePath), {
+          filename: path.basename(audioFilePath),
+          contentType: mimeType
+        });
+        form.append('model', modelName);
+        if (sourceLang && sourceLang !== 'auto') {
+          form.append('language_code', sourceLang);
+        }
+        form.append('mode', 'transcribe');
+        const headers = {
+          ...form.getHeaders(),
+          'api-subscription-key': apiKey
+        };
+        return { form, headers };
       };
 
-      if (apiKey && apiKey.trim().length > 0) {
-        headers['Authorization'] = `Bearer ${apiKey.trim()}`;
-      }
-
-      Logger.log(`Sending request to ${providerDisplayName}...`);
-      const response = await postWithRetry(apiUrl, formData, {
-        headers,
+      Logger.log('Sending request to Sarvam AI STT...');
+      const response = await postWithRetry(apiUrl, makeForm, {
         timeout: 60000 // 60 second timeout with exponential backoff retry
       });
 
-      Logger.success(`Received response from ${providerDisplayName}`);
+      Logger.success('Received response from Sarvam AI');
 
       let transcribedText = '';
       if (typeof response.data === 'string') {
         try {
           const parsed = JSON.parse(response.data);
-          transcribedText = parsed.text || response.data;
+          transcribedText = parsed.transcript || parsed.text || response.data;
         } catch (e) {
           transcribedText = response.data;
         }
       } else if (response.data && typeof response.data === 'object') {
-        transcribedText = response.data.text || response.data.transcription || JSON.stringify(response.data);
+        transcribedText = response.data.transcript || response.data.text || response.data.transcription || JSON.stringify(response.data);
       }
 
       transcribedText = String(transcribedText || '').trim();
@@ -183,34 +155,39 @@ class TranscriptionService {
       return transcribedText;
     } catch (error) {
       // Retain audio file on cloud error so user audio is not permanently lost
-      Logger.warn(`Cloud transcription error. Retaining audio file at: ${audioFilePath}`);
+      Logger.warn(`Sarvam transcription error. Retaining audio file at: ${audioFilePath}`);
 
       if (error.response) {
         const status = error.response.status;
         const data = error.response.data;
-        const msg = data?.error?.message || data?.error || (typeof data === 'string' ? data : error.message);
+        const msg = data?.error?.message || data?.error || data?.message || data?.detail || (typeof data === 'string' ? data : error.message);
 
-        if (status === 401) {
-          throw new Error(`[${providerDisplayName}] Invalid API key. Please check your ${providerDisplayName} key in Settings.`);
+        if (status === 401 || status === 403) {
+          throw new Error(`[Sarvam AI] Invalid or expired API key. Please check your Sarvam AI key in Settings.`);
         } else if (status === 429) {
-          throw new Error(`[${providerDisplayName}] Rate limit or quota exceeded. Please try again later or check billing.`);
+          throw new Error(`[Sarvam AI] Rate limit or quota exceeded. Please try again later or check billing.`);
         } else if (status === 400) {
-          throw new Error(`[${providerDisplayName}] Audio could not be processed: ${msg}`);
+          throw new Error(`[Sarvam AI] Audio could not be processed: ${msg}`);
         } else if (status === 404) {
-          throw new Error(`[${providerDisplayName}] Model '${modelName}' or endpoint not found (${apiUrl}).`);
+          throw new Error(`[Sarvam AI] Model '${modelName}' or endpoint not found (${apiUrl}).`);
         } else if (status >= 500) {
-          throw new Error(`[${providerDisplayName}] Server error (${status}). Please try again shortly.`);
+          throw new Error(`[Sarvam AI] Server error (${status}). Please try again shortly.`);
         } else {
-          throw new Error(`[${providerDisplayName}] Error ${status}: ${msg}`);
+          throw new Error(`[Sarvam AI] Error ${status}: ${msg}`);
         }
       } else if (error.code === 'ECONNABORTED') {
-        throw new Error(`[${providerDisplayName}] Request timed out. Check your internet connection and try again.`);
+        throw new Error(`[Sarvam AI] Request timed out. Check your internet connection and try again.`);
       } else if (error.code === 'ENOTFOUND' || error.code === 'ECONNREFUSED') {
-        throw new Error(`Could not connect to ${apiUrl}. Check network connection or endpoint URL.`);
+        throw new Error(`Could not connect to Sarvam AI (${apiUrl}). Check network connection.`);
       } else {
         throw new Error(`Transcription failed: ${error.message}`);
       }
     }
+  }
+
+  // Alias for backward compatibility
+  async transcribeCloudBYOK(audioFilePath) {
+    return await this.transcribeSarvam(audioFilePath);
   }
 
 }

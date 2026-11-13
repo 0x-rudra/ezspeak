@@ -492,7 +492,7 @@ async function handleRecordStart() {
     showMainWindow('settings');
     if (settingsWindow && !settingsWindow.isDestroyed()) {
       try {
-        settingsWindow.webContents.send('error', isOffline ? 'Please download or import a Whisper model in Settings first.' : 'Please configure your API key in Settings first.');
+        settingsWindow.webContents.send('error', isOffline ? 'Please download or import a Whisper model in Settings first.' : 'Please configure your Sarvam AI API key in Settings first.');
       } catch (e) {}
     }
     return;
@@ -669,7 +669,9 @@ ipcMain.on('live-audio-slice', async (event, bufferArray) => {
 
 // IPC Handlers
 ipcMain.handle('get-api-key', () => {
-  return Config.getApiKey();
+  // Return masked key so renderer can show "configured" state without exposing plaintext
+  const key = Config.getApiKey();
+  return key && key.length > 0 ? '••••••••' : '';
 });
 
 ipcMain.handle('set-api-key', (event, key) => {
@@ -779,24 +781,30 @@ ipcMain.on('resume-hotkey', () => {
 });
 
 ipcMain.handle('get-all-settings', () => {
-  return Config.getAllProviderSettings();
+  // Return settings with API keys masked: send only whether a key is configured,
+  // not the actual decrypted value. The UI uses this to show "configured" vs empty state.
+  const all = Config.getAllProviderSettings();
+  const redact = (key) => (key && key.length > 0 ? '••••••••' : '');
+  return {
+    ...all,
+    sarvam: {
+      ...all.sarvam,
+      apiKey: redact(all.sarvam?.apiKey)
+    }
+  };
 });
 
 ipcMain.handle('save-provider-settings', (event, s) => {
   if (s.transcriptionMode) Config.setTranscriptionMode(s.transcriptionMode);
-  if (s.cloudProvider) Config.setCloudProvider(s.cloudProvider);
-  if (s.openai) {
-    if (s.openai.apiKey !== undefined) Config.setOpenAIApiKey(s.openai.apiKey);
-    if (s.openai.model) Config.setOpenAIModel(s.openai.model);
-  }
-  if (s.groq) {
-    if (s.groq.apiKey !== undefined) Config.setGroqApiKey(s.groq.apiKey);
-    if (s.groq.model) Config.setGroqModel(s.groq.model);
-  }
-  if (s.custom) {
-    if (s.custom.endpoint !== undefined) Config.setCustomEndpoint(s.custom.endpoint);
-    if (s.custom.apiKey !== undefined) Config.setCustomApiKey(s.custom.apiKey);
-    if (s.custom.model) Config.setCustomModel(s.custom.model);
+  if (s.sarvam) {
+    if (s.sarvam.apiKey !== undefined && s.sarvam.apiKey !== '••••••••') {
+      Config.setSarvamApiKey(s.sarvam.apiKey);
+    }
+    if (s.sarvam.model) Config.setSarvamModel(s.sarvam.model);
+    if (s.sarvam.sttModel) Config.setSarvamSTTModel(s.sarvam.sttModel);
+    if (s.sarvam.targetLang) Config.setSarvamTargetLang(s.sarvam.targetLang);
+    if (s.sarvam.sourceLang) Config.setSarvamSourceLang(s.sarvam.sourceLang);
+    if (s.sarvam.autoTranslate !== undefined) Config.setAutoTranslate(s.sarvam.autoTranslate);
   }
   if (s.local) {
     if (s.local.modelName) Config.setLocalModelName(s.local.modelName);
@@ -806,11 +814,10 @@ ipcMain.handle('save-provider-settings', (event, s) => {
 });
 
 ipcMain.handle('get-cloud-provider', () => {
-  return Config.getCloudProvider();
+  return 'sarvam';
 });
 
 ipcMain.handle('set-cloud-provider', (event, provider) => {
-  Config.setCloudProvider(provider);
   return true;
 });
 
@@ -906,6 +913,10 @@ ipcMain.on('minimize-window', () => {
 });
 
 ipcMain.on('open-external', (event, url) => {
+  if (typeof url !== 'string' || !url.startsWith('https://')) {
+    Logger.warn(`[Security] Blocked open-external for non-https URL: ${url}`);
+    return;
+  }
   shell.openExternal(url);
 });
 

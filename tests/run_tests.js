@@ -100,6 +100,7 @@ try {
   const service = new TranscriptionService();
   assert(service !== null, 'TranscriptionService instantiated');
   assert(typeof service.transcribe === 'function', 'transcribe method exists');
+  assert(typeof service.transcribeSarvam === 'function', 'transcribeSarvam method exists');
   assert(typeof service.transcribeCloudBYOK === 'function', 'transcribeCloudBYOK method exists');
 } catch (e) {
   assert(false, `TranscriptionService error: ${e.message}`);
@@ -113,6 +114,7 @@ try {
   assert(typeof hotkey === 'string' && hotkey.length > 0, `Config hotkey returned: ${hotkey}`);
   const sarvam = Config.getSarvamSettings();
   assert(sarvam && sarvam.targetLang === 'hi-IN', 'Sarvam default target language is hi-IN');
+  assert(sarvam && sarvam.sttModel === 'saaras:v2', 'Sarvam default STT model is saaras:v2');
 } catch (e) {
   assert(false, `Config error: ${e.message}`);
 }

@@ -122,12 +122,18 @@ async function startRecording() {
     }
 
     // Live Streaming Speech Slice Emitter
-    // Every ~1.2s, if user spoke, package sliceChunks and emit for real-time transcription
+    // Every ~1.2s, if user spoke, package only the NEW chunks since the last slice
+    // and emit for real-time transcription. This avoids quadratic cost (re-sending
+    // all audio every interval) and keeps slices well under the 25MB API limit.
+    let lastSliceIndex = 0;
     sliceInterval = setInterval(async () => {
-      if (mediaRecorder && mediaRecorder.state === 'recording' && audioChunks.length >= 8 && isSpeakingDetected) {
+      if (mediaRecorder && mediaRecorder.state === 'recording' && isSpeakingDetected) {
+        const newChunks = audioChunks.slice(lastSliceIndex);
+        if (newChunks.length < 8) return; // Need at least ~0.8s of data
         try {
           isSpeakingDetected = false;
-          const sliceBlob = new Blob(audioChunks.slice(), { type: mimeType || 'audio/webm' });
+          lastSliceIndex = audioChunks.length; // Advance pointer
+          const sliceBlob = new Blob(newChunks, { type: mimeType || 'audio/webm' });
           const arrayBuffer = await sliceBlob.arrayBuffer();
           const buffer = Array.from(new Uint8Array(arrayBuffer));
           

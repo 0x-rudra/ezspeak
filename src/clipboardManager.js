@@ -3,7 +3,7 @@ const { keyboard, Key } = require('@nut-tree-fork/nut-js');
 const os = require('os');
 const path = require('path');
 const fs = require('fs');
-const { execFile, spawnSync } = require('child_process');
+const { execFile, spawn } = require('child_process');
 const Logger = require('./logger');
 
 const WTYPE_PATH = path.join(__dirname, '..', 'bin', 'wtype');
@@ -53,12 +53,23 @@ class ClipboardManager {
     }
 
     if (process.platform === 'linux') {
-      try {
-        spawnSync('wl-copy', ['--', text], { input: text, timeout: 500 });
-        spawnSync('wl-copy', ['--primary', '--', text], { input: text, timeout: 500 });
-      } catch (e) {
-        // wl-copy might not be available or timed out
-      }
+      // Pass text via stdin (not argv) so it's not visible in `ps` / process list.
+      // Use async spawn to avoid blocking the main thread.
+      const writeToWlCopy = (args) => {
+        return new Promise((resolve) => {
+          try {
+            const proc = spawn('wl-copy', args, { timeout: 1000 });
+            proc.stdin.on('error', () => {});
+            proc.on('error', () => resolve());
+            proc.on('close', resolve);
+            proc.stdin.end(text, 'utf8');
+          } catch (e) {
+            resolve();
+          }
+        });
+      };
+      // Fire-and-forget; do not await so callers aren't blocked
+      Promise.all([writeToWlCopy([]), writeToWlCopy(['--primary'])]).catch(() => {});
     }
   }
 

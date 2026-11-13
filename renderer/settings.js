@@ -191,30 +191,10 @@ async function loadSettings() {
         const mode = (await window.electronAPI.getMode()) || 'toggle';
         applyModeToUI(mode);
 
-        // Fill BYOK Inputs
-        const openaiKey = document.getElementById('openaiApiKey');
-        const openaiModel = document.getElementById('openaiModel');
-        if (openaiKey) openaiKey.value = currentSettings.openai?.apiKey || '';
-        if (openaiModel && currentSettings.openai?.model) openaiModel.value = currentSettings.openai.model;
-
-        const groqKey = document.getElementById('groqApiKey');
-        const groqModel = document.getElementById('groqModel');
-        if (groqKey) groqKey.value = currentSettings.groq?.apiKey || '';
-        if (groqModel && currentSettings.groq?.model) groqModel.value = currentSettings.groq.model;
-
-        const customEndpoint = document.getElementById('customEndpoint');
-        const customApiKey = document.getElementById('customApiKey');
-        const customModel = document.getElementById('customModel');
-        if (customEndpoint) customEndpoint.value = currentSettings.custom?.endpoint || '';
-        if (customApiKey) customApiKey.value = currentSettings.custom?.apiKey || '';
-        if (customModel) customModel.value = currentSettings.custom?.model || 'whisper-1';
-
-        // Determine active provider selector value
-        let activeVal = 'openai';
+        // Determine active provider selector value (Sarvam Cloud vs Offline)
+        let activeVal = 'sarvam';
         if (currentSettings.transcriptionMode === 'offline') {
             activeVal = 'offline';
-        } else {
-            activeVal = currentSettings.cloudProvider || 'openai';
         }
 
         if (providerSelect) {
@@ -225,7 +205,7 @@ async function loadSettings() {
         // Load local models
         await refreshLocalModels();
 
-        // Load Sarvam AI translation settings
+        // Load Sarvam AI settings
         await loadSarvamSettings();
 
         // Update dashboard snippet
@@ -240,28 +220,22 @@ async function loadSettings() {
 
 // ─── Update UI on Provider Change ────────────────────────────────────────────
 async function updateProviderUI(selectedProvider, saveToMain = true) {
-    const cards = {
-        openai: document.getElementById('providerCardOpenAI'),
-        groq: document.getElementById('providerCardGroq'),
-        custom: document.getElementById('providerCardCustom'),
-        offline: document.getElementById('providerCardOffline')
-    };
+    const cardSarvam = document.getElementById('cardSarvam');
+    const cardOffline = document.getElementById('providerCardOffline');
+    const engineBadge = document.getElementById('transcriptionEngineBadge');
 
-    Object.entries(cards).forEach(([key, card]) => {
-        if (card) card.style.display = key === selectedProvider ? 'flex' : 'none';
-    });
+    if (cardSarvam) cardSarvam.style.display = selectedProvider === 'sarvam' ? 'flex' : 'none';
+    if (cardOffline) cardOffline.style.display = selectedProvider === 'offline' ? 'flex' : 'none';
+    if (engineBadge) {
+        engineBadge.textContent = selectedProvider === 'offline' ? 'Local Whisper' : 'Sarvam Cloud STT';
+    }
 
     // Update Dashboard Engine display
     updateDashboardEngineText(selectedProvider);
 
     if (saveToMain) {
         try {
-            if (selectedProvider === 'offline') {
-                await window.electronAPI.setTranscriptionMode('offline');
-            } else {
-                await window.electronAPI.setTranscriptionMode('cloud');
-                await window.electronAPI.setCloudProvider(selectedProvider);
-            }
+            await window.electronAPI.setTranscriptionMode(selectedProvider === 'offline' ? 'offline' : 'sarvam');
             showToast(`Engine set to ${getProviderLabel(selectedProvider)}`);
         } catch (e) {
             console.error('Failed to update provider:', e);
@@ -270,10 +244,8 @@ async function updateProviderUI(selectedProvider, saveToMain = true) {
 }
 
 function getProviderLabel(provider) {
-    if (provider === 'groq') return 'Groq Whisper';
-    if (provider === 'custom') return 'Custom Endpoint';
-    if (provider === 'offline') return 'Local Whisper';
-    return 'OpenAI Whisper';
+    if (provider === 'offline') return 'Local Whisper.cpp';
+    return 'Sarvam AI';
 }
 
 function updateDashboardEngineText(provider) {
@@ -284,15 +256,10 @@ function updateDashboardEngineText(provider) {
         const localSelect = document.getElementById('localModelSelect');
         const modelName = localSelect ? localSelect.value : 'base.en';
         dashEngine.textContent = `Local (${modelName})`;
-    } else if (provider === 'groq') {
-        const groqModel = document.getElementById('groqModel');
-        const name = (groqModel && groqModel.value.includes('turbo')) ? 'Turbo' : 'Large-v3';
-        dashEngine.textContent = `Groq (${name})`;
-    } else if (provider === 'custom') {
-        const customModel = document.getElementById('customModel');
-        dashEngine.textContent = `Custom (${customModel?.value || 'whisper-1'})`;
     } else {
-        dashEngine.textContent = 'OpenAI (whisper-1)';
+        const sttSelect = document.getElementById('sarvamSTTModel');
+        const modelName = sttSelect ? sttSelect.value : 'saaras:v2';
+        dashEngine.textContent = `Sarvam AI (${modelName})`;
     }
 }
 
@@ -501,53 +468,8 @@ function setupModelActions() {
     }
 }
 
-// ─── Auto-Save BYOK Providers on Change ──────────────────────────────────────
-function setupBYOKAutoSave() {
-    const saveAll = async () => {
-        const payload = {
-            openai: {
-                apiKey: document.getElementById('openaiApiKey')?.value.trim() || '',
-                model: document.getElementById('openaiModel')?.value || 'whisper-1'
-            },
-            groq: {
-                apiKey: document.getElementById('groqApiKey')?.value.trim() || '',
-                model: document.getElementById('groqModel')?.value || 'whisper-large-v3-turbo'
-            },
-            custom: {
-                endpoint: document.getElementById('customEndpoint')?.value.trim() || '',
-                apiKey: document.getElementById('customApiKey')?.value.trim() || '',
-                model: document.getElementById('customModel')?.value.trim() || 'whisper-1'
-            }
-        };
-
-        try {
-            await window.electronAPI.saveProviderSettings(payload);
-            const provider = document.getElementById('transcriptionProvider')?.value;
-            updateDashboardEngineText(provider);
-            showToast('Changes saved');
-        } catch (e) {
-            console.error('Failed to save BYOK settings:', e);
-        }
-    };
-
-    // Attach listeners
-    const inputs = [
-        'openaiApiKey', 'openaiModel',
-        'groqApiKey', 'groqModel',
-        'customEndpoint', 'customApiKey', 'customModel'
-    ];
-
-    inputs.forEach(id => {
-        const el = document.getElementById(id);
-        if (el) {
-            el.addEventListener('change', saveAll);
-            if (el.tagName === 'INPUT') {
-                el.addEventListener('blur', saveAll);
-            }
-        }
-    });
-
-    // Provider dropdown listener
+// ─── Provider Change Listener ────────────────────────────────────────────────
+function setupProviderChangeListener() {
     const providerSelect = document.getElementById('transcriptionProvider');
     if (providerSelect) {
         providerSelect.addEventListener('change', () => {
@@ -1016,12 +938,16 @@ async function loadSarvamSettings() {
         if (!sarvam) return;
 
         const sarvamKeyInput = document.getElementById('sarvamApiKey');
+        const sarvamSTTModel = document.getElementById('sarvamSTTModel');
+        const sarvamSourceLang = document.getElementById('sarvamSourceLang');
         const sarvamDefaultLang = document.getElementById('sarvamDefaultTargetLang');
         const sarvamModelSelect = document.getElementById('sarvamModelSelect');
         const sarvamAutoToggle = document.getElementById('sarvamAutoTranslateToggle');
         const appTargetLangSelect = document.getElementById('appTargetLangSelect');
 
         if (sarvamKeyInput) sarvamKeyInput.value = sarvam.apiKey || '';
+        if (sarvamSTTModel && sarvam.sttModel) sarvamSTTModel.value = sarvam.sttModel;
+        if (sarvamSourceLang && sarvam.sourceLang) sarvamSourceLang.value = sarvam.sourceLang;
         if (sarvamDefaultLang && sarvam.targetLang) sarvamDefaultLang.value = sarvam.targetLang;
         if (sarvamModelSelect && sarvam.model) sarvamModelSelect.value = sarvam.model;
         if (sarvamAutoToggle) sarvamAutoToggle.checked = Boolean(sarvam.autoTranslate);
@@ -1047,6 +973,8 @@ function updateSarvamKeyBadge(apiKey) {
 
 function setupSarvamAndStudio() {
     const sarvamKeyInput = document.getElementById('sarvamApiKey');
+    const sarvamSTTModel = document.getElementById('sarvamSTTModel');
+    const sarvamSourceLang = document.getElementById('sarvamSourceLang');
     const sarvamDefaultLang = document.getElementById('sarvamDefaultTargetLang');
     const sarvamModelSelect = document.getElementById('sarvamModelSelect');
     const sarvamAutoToggle = document.getElementById('sarvamAutoTranslateToggle');
@@ -1083,6 +1011,34 @@ function setupSarvamAndStudio() {
     if (sarvamKeyInput) {
         sarvamKeyInput.addEventListener('change', saveSarvamKey);
         sarvamKeyInput.addEventListener('blur', saveSarvamKey);
+    }
+
+    // 1b. STT Model change
+    if (sarvamSTTModel) {
+        sarvamSTTModel.addEventListener('change', async () => {
+            const sttModel = sarvamSTTModel.value;
+            try {
+                await window.electronAPI.setSarvamSettings({ sttModel });
+                updateDashboardEngineText(document.getElementById('transcriptionProvider')?.value);
+                showToast(`STT model set to ${sttModel}`);
+            } catch (e) {
+                console.error('Failed to update STT model:', e);
+            }
+        });
+    }
+
+    // 1c. Spoken Language change
+    if (sarvamSourceLang) {
+        sarvamSourceLang.addEventListener('change', async () => {
+            const sourceLang = sarvamSourceLang.value;
+            try {
+                await window.electronAPI.setSarvamSettings({ sourceLang });
+                const langName = sarvamSourceLang.options[sarvamSourceLang.selectedIndex]?.text || sourceLang;
+                showToast(`Spoken language: ${langName}`);
+            } catch (e) {
+                console.error('Failed to update spoken language:', e);
+            }
+        });
     }
 
     // 2. Default Target Language change in Settings
@@ -1343,7 +1299,7 @@ document.addEventListener('DOMContentLoaded', () => {
     setupWindowControls();
     setupTabs();
     setupPasswordToggles();
-    setupBYOKAutoSave();
+    setupProviderChangeListener();
     setupModelActions();
     setupClearHistory();
     setupHotkeyCapture();

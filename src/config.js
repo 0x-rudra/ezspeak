@@ -2,6 +2,7 @@ const Store = require('electron-store');
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
+const crypto = require('crypto');
 
 function resolveConfigDir() {
   try {
@@ -10,7 +11,7 @@ function resolveConfigDir() {
     if (app && typeof app.getPath === 'function') {
       try {
         targetDir = app.getPath('userData');
-      } catch (e) {}
+      } catch (e) { }
     }
     if (!targetDir) {
       const configHome = process.env.XDG_CONFIG_HOME || path.join(os.homedir(), '.config');
@@ -34,39 +35,21 @@ const store = new Store({
   name: 'listner-config',
   cwd: resolveConfigDir(),
   defaults: {
-    // Mode: 'cloud' (formerly 'online') or 'offline'
-    transcriptionMode: 'cloud',
-    
-    // Cloud BYOK provider: 'openai', 'groq', or 'custom'
-    cloudProvider: 'openai',
+    // Mode: 'sarvam' (cloud STT) or 'offline' (whisper.cpp)
+    transcriptionMode: 'sarvam',
 
-    // OpenAI settings
-    openaiApiKey: '',
-    openaiModel: 'whisper-1',
-
-    // Groq settings (ultra-fast transcription)
-    groqApiKey: '',
-    groqModel: 'whisper-large-v3-turbo',
-
-    // Custom OpenAI-compatible endpoint
-    customEndpoint: 'http://localhost:8000/v1/audio/transcriptions',
-    customApiKey: '',
-    customModel: 'whisper-1',
-
-    // Legacy fallback apiKey
-    apiKey: '',
+    // Sarvam AI Settings (Single unified API provider for STT & Translation)
+    sarvamApiKey: '',
+    sarvamSourceLang: 'en-IN',
+    sarvamTargetLang: 'hi-IN',
+    sarvamModel: 'mayura:v1',       // translation model
+    sarvamSTTModel: 'saaras:v2',    // speech-to-text model
+    autoTranslate: false,
 
     // Local Whisper settings
     localModelName: 'base.en',
     localModelPath: '',
     importedModels: [], // array of { id, name, filename, path, sizeMB, importedAt }
-
-    // Sarvam AI Translation settings
-    sarvamApiKey: '',
-    sarvamSourceLang: 'en-IN',
-    sarvamTargetLang: 'hi-IN',
-    sarvamModel: 'mayura:v1',
-    autoTranslate: false,
 
     // App & Audio Settings
     autostart: false,
@@ -90,7 +73,10 @@ function encryptSecret(plaintext) {
     if (safeStorage && typeof safeStorage.isEncryptionAvailable === 'function' && safeStorage.isEncryptionAvailable()) {
       return 'enc:' + safeStorage.encryptString(trimmed).toString('base64');
     }
-  } catch (e) {}
+  } catch (e) { }
+  // safeStorage not available — storing as plaintext. Log once so the user is aware.
+  const Logger = require('./logger');
+  Logger.warn('[Config] safeStorage unavailable — API key stored as plaintext in config file. Upgrade your OS keyring for encryption.');
   return trimmed;
 }
 
@@ -103,125 +89,55 @@ function decryptSecret(storedValue) {
         const buf = Buffer.from(storedValue.slice(4), 'base64');
         return safeStorage.decryptString(buf);
       }
-    } catch (e) {}
+    } catch (e) {
+      const Logger = require('./logger');
+      Logger.error('[Config] Failed to decrypt stored secret (safeStorage error). The key is inaccessible; please re-enter it in Settings.');
+      return '';
+    }
+    // safeStorage unavailable but value looks encrypted — cannot decrypt; return empty
+    const Logger = require('./logger');
+    Logger.error('[Config] Cannot decrypt stored secret: safeStorage not available on this system. Please re-enter the API key in Settings.');
+    return '';
   }
   return storedValue;
 }
 
 class Config {
-  // ─── Mode & Provider ───────────────────────────────────────────
+  // ─── Mode & Provider (Sarvam AI Cloud vs Local Offline) ────────
   static getTranscriptionMode() {
-    const mode = store.get('transcriptionMode', 'cloud');
-    return mode === 'online' ? 'cloud' : mode;
+    const mode = store.get('transcriptionMode', 'sarvam');
+    if (mode === 'cloud' || mode === 'online') return 'sarvam';
+    return mode === 'offline' ? 'offline' : 'sarvam';
   }
 
   static setTranscriptionMode(mode) {
-    if (mode === 'cloud' || mode === 'offline' || mode === 'online') {
-      store.set('transcriptionMode', mode === 'online' ? 'cloud' : mode);
+    if (mode === 'offline' || mode === 'sarvam' || mode === 'cloud' || mode === 'online') {
+      store.set('transcriptionMode', mode === 'offline' ? 'offline' : 'sarvam');
     }
   }
 
   static getCloudProvider() {
-    return store.get('cloudProvider', 'openai');
+    return 'sarvam';
   }
 
   static setCloudProvider(provider) {
-    if (['openai', 'groq', 'custom'].includes(provider)) {
-      store.set('cloudProvider', provider);
-    }
+    // Single cloud provider is Sarvam AI
   }
 
-  // ─── Cloud BYOK Provider Settings ──────────────────────────────
-  static getOpenAIApiKey() {
-    return decryptSecret(store.get('openaiApiKey', '') || store.get('apiKey', ''));
-  }
-
-  static setOpenAIApiKey(key) {
-    const enc = encryptSecret(key);
-    store.set('openaiApiKey', enc);
-    store.set('apiKey', enc); // Sync legacy key
-  }
-
-  static getOpenAIModel() {
-    return store.get('openaiModel', 'whisper-1');
-  }
-
-  static setOpenAIModel(model) {
-    store.set('openaiModel', model);
-  }
-
-  static getGroqApiKey() {
-    return decryptSecret(store.get('groqApiKey', ''));
-  }
-
-  static setGroqApiKey(key) {
-    store.set('groqApiKey', encryptSecret(key));
-  }
-
-  static getGroqModel() {
-    return store.get('groqModel', 'whisper-large-v3-turbo');
-  }
-
-  static setGroqModel(model) {
-    store.set('groqModel', model);
-  }
-
-  static getCustomEndpoint() {
-    return store.get('customEndpoint', 'http://localhost:8000/v1/audio/transcriptions');
-  }
-
-  static setCustomEndpoint(endpoint) {
-    store.set('customEndpoint', endpoint);
-  }
-
-  static getCustomApiKey() {
-    return decryptSecret(store.get('customApiKey', ''));
-  }
-
-  static setCustomApiKey(key) {
-    store.set('customApiKey', encryptSecret(key));
-  }
-
-  static getCustomModel() {
-    return store.get('customModel', 'whisper-1');
-  }
-
-  static setCustomModel(model) {
-    store.set('customModel', model);
-  }
-
-  // Legacy API key helper
+  // Primary API key helpers (backed by Sarvam AI)
   static getApiKey() {
-    const provider = this.getCloudProvider();
-    if (provider === 'groq') return this.getGroqApiKey();
-    if (provider === 'custom') return this.getCustomApiKey();
-    return this.getOpenAIApiKey();
+    return this.getSarvamApiKey();
   }
 
   static setApiKey(apiKey) {
-    const provider = this.getCloudProvider();
-    if (provider === 'groq') this.setGroqApiKey(apiKey);
-    else if (provider === 'custom') this.setCustomApiKey(apiKey);
-    else this.setOpenAIApiKey(apiKey);
+    this.setSarvamApiKey(apiKey);
   }
 
   static getAllProviderSettings() {
     return {
       transcriptionMode: this.getTranscriptionMode(),
-      cloudProvider: this.getCloudProvider(),
-      openai: {
-        apiKey: this.getOpenAIApiKey(),
-        model: this.getOpenAIModel()
-      },
-      groq: {
-        apiKey: this.getGroqApiKey(),
-        model: this.getGroqModel()
-      },
-      custom: {
-        endpoint: this.getCustomEndpoint(),
-        apiKey: this.getCustomApiKey(),
-        model: this.getCustomModel()
-      },
+      cloudProvider: 'sarvam',
+      sarvam: this.getSarvamSettings(),
       local: {
         modelName: this.getLocalModelName(),
         modelPath: this.getLocalModelPath(),
@@ -340,20 +256,10 @@ class Config {
     if (mode === 'offline') {
       return true; // Local model is checked separately
     }
-    const provider = this.getCloudProvider();
-    if (provider === 'openai') {
-      return this.getOpenAIApiKey().length > 0;
-    }
-    if (provider === 'groq') {
-      return this.getGroqApiKey().length > 0;
-    }
-    if (provider === 'custom') {
-      return this.getCustomEndpoint().length > 0;
-    }
-    return false;
+    return this.getSarvamApiKey().length > 0;
   }
 
-  // ─── Sarvam AI Translation ─────────────────────────────────────
+  // ─── Sarvam AI (Single Provider for STT & Translation) ──────────
   static getSarvamApiKey() {
     return decryptSecret(store.get('sarvamApiKey', ''));
   }
@@ -386,6 +292,14 @@ class Config {
     store.set('sarvamModel', model || 'mayura:v1');
   }
 
+  static getSarvamSTTModel() {
+    return store.get('sarvamSTTModel', 'saaras:v2');
+  }
+
+  static setSarvamSTTModel(model) {
+    store.set('sarvamSTTModel', model || 'saaras:v2');
+  }
+
   static getAutoTranslate() {
     return store.get('autoTranslate', false);
   }
@@ -400,16 +314,18 @@ class Config {
       sourceLang: this.getSarvamSourceLang(),
       targetLang: this.getSarvamTargetLang(),
       model: this.getSarvamModel(),
+      sttModel: this.getSarvamSTTModel(),
       autoTranslate: this.getAutoTranslate()
     };
   }
 
   static setSarvamSettings(settings) {
     if (!settings) return;
-    if (settings.apiKey !== undefined) this.setSarvamApiKey(settings.apiKey);
+    if (settings.apiKey !== undefined && settings.apiKey !== '••••••••') this.setSarvamApiKey(settings.apiKey);
     if (settings.sourceLang !== undefined) this.setSarvamSourceLang(settings.sourceLang);
     if (settings.targetLang !== undefined) this.setSarvamTargetLang(settings.targetLang);
     if (settings.model !== undefined) this.setSarvamModel(settings.model);
+    if (settings.sttModel !== undefined) this.setSarvamSTTModel(settings.sttModel);
     if (settings.autoTranslate !== undefined) this.setAutoTranslate(settings.autoTranslate);
   }
 
@@ -421,7 +337,7 @@ class Config {
   static addToHistory(text) {
     const history = this.getHistory();
     const entry = {
-      id: Date.now().toString(),
+      id: crypto.randomUUID(),
       text: text.trim(),
       timestamp: new Date().toISOString()
     };

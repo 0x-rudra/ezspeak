@@ -3,6 +3,8 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 
+const LOG_MAX_BYTES = 5 * 1024 * 1024; // 5 MB per log file — rotate beyond this
+
 class Logger {
   static logFile = null;
   
@@ -15,9 +17,24 @@ class Logger {
       }
       const logFile = path.join(logDir, `listner-${new Date().toISOString().split('T')[0]}.log`);
       this.logFile = logFile;
+      // Rotate old log if it exceeds the size limit
+      this._rotateIfNeeded();
       this.writeToFile('=== Logging started ===');
     } catch (e) {
       // If electron app not available, skip file logging
+    }
+  }
+
+  static _rotateIfNeeded() {
+    if (!this.logFile) return;
+    try {
+      const stats = fs.statSync(this.logFile);
+      if (stats.size > LOG_MAX_BYTES) {
+        const rotated = this.logFile.replace(/\.log$/, '.old.log');
+        fs.renameSync(this.logFile, rotated);
+      }
+    } catch (e) {
+      // File doesn't exist yet or stat failed — no rotation needed
     }
   }
   

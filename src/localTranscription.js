@@ -317,7 +317,7 @@ class LocalTranscriptionService {
       throw new Error('Invalid model path');
     }
     const resolvedTarget = path.resolve(modelPath);
-    const resolvedModelsDir = path.resolve(this.modelsDir);
+    const resolvedModelsDir = path.resolve(this.getModelsDir());
 
     // Guard against path traversal: ensure target is strictly inside models directory
     if (!resolvedTarget.startsWith(resolvedModelsDir + path.sep) && resolvedTarget !== resolvedModelsDir) {

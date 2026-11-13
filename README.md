@@ -7,8 +7,8 @@
 ## 🌟 Key Features
 
 - **Offline Transcription**: Runs private, on-device Whisper models locally using resident `whisper.cpp` processes.
-- **Cloud BYOK (Bring Your Own Key)**: Native support for Groq (`whisper-large-v3-turbo` with sub-second latency), OpenAI (`whisper-1`), and arbitrary custom OpenAI-compatible audio transcription endpoints.
-- **Indic & Global Translation**: Real-time translation to Hindi, Tamil, Telugu, Bengali, Kannada, and other languages powered by Sarvam AI.
+- **Cloud Transcription (Sarvam AI)**: High-accuracy, low-latency cloud speech-to-text powered by Sarvam AI (`saaras:v2` / `saaras:v1`) supporting Indian English and 10+ Indic languages.
+- **Indic & Global Translation**: Real-time translation to Hindi, Tamil, Telugu, Bengali, Kannada, and other languages powered by Sarvam AI (`mayura:v1`).
 - **Cross-Platform Global Hotkey**:
   - **Linux Wayland**: First-class support for Wayland compositors (Niri, Hyprland, Sway) via Unix domain socket IPC (`/tmp/listner.sock`) and localhost HTTP (`http://127.0.0.1:49152/toggle`).
   - **Windows & macOS**: Native OS global shortcuts for Toggle mode and low-overhead Push-to-Talk (Hold mode).
@@ -123,18 +123,14 @@ bindsym $mod+space exec listner --toggle
 
 ---
 
-## 🔑 Cloud Providers & BYOK Setup
+## 🔑 Sarvam AI Cloud & Translation Setup
 
-Open **Settings → Cloud Providers** to configure your transcription provider:
+Open **Settings → API Keys & Preferences** to configure your unified Sarvam AI subscription key:
 
-| Provider | Model | Latency | Description |
-| :--- | :--- | :--- | :--- |
-| **Groq** | `whisper-large-v3-turbo` | ~300ms | Ultra-fast cloud transcription powered by Groq LPUs. |
-| **OpenAI** | `whisper-1` | ~1.5s | Official OpenAI Whisper transcription endpoint. |
-| **Custom** | Custom Model Name | Variable | Any OpenAI-compatible `/v1/audio/transcriptions` endpoint (e.g. LocalAI, vLLM). |
-
-### Indic Language Translation (Sarvam AI)
-Configure your Sarvam AI API key in **Settings → Translation** to automatically translate voice dictation into 10+ Indian languages (Hindi, Tamil, Telugu, Bengali, Kannada, Malayalam, Marathi, Gujarati, Punjabi, Odia).
+| Capability | Model | Description |
+| :--- | :--- | :--- |
+| **Speech-to-Text** | `saaras:v2` / `saaras:v1` | High-accuracy speech recognition supporting English and 10+ Indic languages. |
+| **Translation** | `mayura:v1` | Real-time text translation into Hindi, Tamil, Telugu, Bengali, Kannada, Marathi, Gujarati, etc. |
 
 ---
 
