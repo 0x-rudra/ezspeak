@@ -4,7 +4,10 @@ const os = require('os');
 const crypto = require('crypto');
 const { app, BrowserWindow, Tray, Menu, ipcMain, nativeImage, nativeTheme, shell, dialog } = require('electron');
 
-if (app) {
+if (!app) {
+  // If executed via plain Node.js or with ELECTRON_RUN_AS_NODE=1, delegate to scripts/start.js
+  require('./scripts/start.js');
+} else {
   app.name = 'listner';
   try {
     const defaultUserData = app.getPath('userData');
@@ -16,7 +19,6 @@ if (app) {
       app.setPath('userData', fallbackUserData);
     }
   } catch (e) {}
-}
 
 const HotkeyManager = require('./src/hotkeyManager');
 const AudioRecorder = require('./src/audioRecorder');
@@ -43,6 +45,27 @@ const preRollBuffer = new PreRollAudioBuffer(3);
 let audioCaptureWindow = null;
 
 // Enforce single instance lock and route CLI --toggle to running instance
+try {
+  const userDataDir = app.getPath('userData');
+  const lockFile = path.join(userDataDir, 'SingletonLock');
+  if (fs.existsSync(lockFile)) {
+    try {
+      const target = fs.readlinkSync(lockFile);
+      const parts = target.split('-');
+      const pid = parseInt(parts[parts.length - 1], 10);
+      if (pid) {
+        try {
+          process.kill(pid, 0);
+        } catch (e) {
+          if (e.code === 'ESRCH') {
+            fs.unlinkSync(lockFile);
+          }
+        }
+      }
+    } catch (e) {}
+  }
+} catch (e) {}
+
 const gotTheLock = app.requestSingleInstanceLock();
 if (!gotTheLock) {
   if (process.argv.includes('--toggle')) {
@@ -63,6 +86,7 @@ if (!gotTheLock) {
     });
     req.end();
   } else {
+    console.log('[Listner] Another instance of Listner is already running. Focus signaled.');
     app.exit(0);
   }
 }
@@ -1051,4 +1075,5 @@ app.on('before-quit', () => {
     settingsWindow.destroy();
   }
 });
+}
 

@@ -4,12 +4,25 @@ export PATH="$BIN_DIR:$PATH"
 export ELECTRON_RUN_AS_NODE=""
 unset ELECTRON_RUN_AS_NODE
 
-if [ "$1" = "start" ]; then
+CMD="$1"
+if [ "$CMD" = "run" ]; then
+  shift
+  CMD="$1"
+fi
+
+if [ "$CMD" = "start" ]; then
   shift
   exec "$BIN_DIR/electron" . "$@"
-elif [ "$1" = "test" ]; then
+elif [ "$CMD" = "dev" ]; then
+  shift
+  exec "$BIN_DIR/electron" . --dev "$@"
+elif [ "$CMD" = "test" ]; then
   shift
   exec "$BIN_DIR/node" "$BIN_DIR/../tests/run_tests.js" "$@"
+elif [ "$CMD" = "build" ]; then
+  shift
+  exec "$BIN_DIR/node" "$BIN_DIR/../node_modules/.bin/electron-builder" "$@"
 else
   exec "$BIN_DIR/node" "$@"
 fi
+

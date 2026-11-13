@@ -41,6 +41,7 @@ const filesToCheck = [
   'main.js',
   'preload.js',
   'renderer/settings.js',
+  'scripts/start.js',
   'src/audioPipeline.js',
   'src/audioRecorder.js',
   'src/autostart.js',

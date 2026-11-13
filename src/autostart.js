@@ -106,3 +106,4 @@ X-GNOME-Autostart-enabled=true
 }
 
 module.exports = new AutostartManager();
+

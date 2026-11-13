@@ -33,3 +33,4 @@ class WindowsPlatformAdapter {
 }
 
 module.exports = new WindowsPlatformAdapter();
+

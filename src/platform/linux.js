@@ -110,3 +110,4 @@ class LinuxPlatformAdapter {
 }
 
 module.exports = new LinuxPlatformAdapter();
+

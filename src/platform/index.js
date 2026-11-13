@@ -12,3 +12,4 @@ function getPlatformAdapter() {
 }
 
 module.exports = getPlatformAdapter();
+
