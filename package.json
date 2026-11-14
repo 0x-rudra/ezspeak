@@ -1,6 +1,7 @@
 {
   "name": "ezspeak",
   "productName": "EzSpeak",
+  "desktopName": "ezspeak.desktop",
   "version": "0.2.0",
   "description": "Cross-platform voice dictation and transcription desktop app",
   "main": "main.js",
@@ -55,6 +56,7 @@
   "build": {
     "appId": "com.rudranshagupta.ezspeak",
     "productName": "EzSpeak",
+    "npmRebuild": false,
     "directories": {
       "output": "dist",
       "buildResources": "assets"
@@ -91,7 +93,6 @@
       "maintainer": "Rudransha Gupta <rudranshagupta@gmail.com>",
       "synopsis": "Cross-platform voice dictation and transcription desktop app",
       "description": "Cross-platform voice dictation and transcription desktop app powered by Whisper",
-      "desktopName": "ezspeak.desktop",
       "syncDesktopName": true,
       "desktop": {
         "entry": {
@@ -112,7 +113,30 @@
         "zip"
       ],
       "category": "public.app-category.utilities",
-      "icon": "assets/icon.icns"
+      "icon": "assets/icon.icns",
+      "extendInfo": {
+        "NSMicrophoneUsageDescription": "EzSpeak requires microphone access to record and transcribe your voice."
+      }
+    },
+    "dmg": {
+      "background": "assets/dmg-background.png",
+      "iconSize": 120,
+      "contents": [
+        {
+          "x": 180,
+          "y": 240
+        },
+        {
+          "x": 480,
+          "y": 240,
+          "type": "link",
+          "path": "/Applications"
+        }
+      ],
+      "window": {
+        "width": 660,
+        "height": 400
+      }
     },
     "nsis": {
       "oneClick": false,

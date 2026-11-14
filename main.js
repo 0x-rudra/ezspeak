@@ -2,7 +2,7 @@ const path = require('path');
 const fs = require('fs');
 const os = require('os');
 const crypto = require('crypto');
-const { app, BrowserWindow, Tray, Menu, ipcMain, nativeImage, nativeTheme, shell, dialog } = require('electron');
+const { app, BrowserWindow, Tray, Menu, ipcMain, nativeImage, nativeTheme, shell, dialog, systemPreferences } = require('electron');
 
 if (!app) {
   // If executed via plain Node.js or with ELECTRON_RUN_AS_NODE=1, delegate to scripts/start.js
@@ -1177,11 +1177,19 @@ function detectAndCleanVoiceCommands(text) {
       Logger.success('[Platform Check] Platform dependencies verified');
     }
 
-    // Set app icon on macOS
+    // Set app icon and check microphone permission on macOS
     if (process.platform === 'darwin') {
       const iconPath = path.join(__dirname, 'assets', 'icon.png');
       const icon = nativeImage.createFromPath(iconPath);
-      app.dock.setIcon(icon);
+      if (app.dock) app.dock.setIcon(icon);
+
+      if (systemPreferences && systemPreferences.askForMediaAccess) {
+        systemPreferences.askForMediaAccess('microphone').then(granted => {
+          Logger.log('[macOS] Microphone access granted:', granted);
+        }).catch(err => {
+          Logger.warn('[macOS] Microphone access prompt error:', err.message);
+        });
+      }
     }
 
     // Force dark mode for window chrome

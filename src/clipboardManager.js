@@ -168,6 +168,26 @@ class ClipboardManager {
         }
       }
 
+      // 5. macOS AppleScript fallback if nut-js was unavailable or failed
+      if (!pasted && process.platform === 'darwin') {
+        try {
+          await new Promise((resolve) => {
+            execFile('osascript', [
+              '-e',
+              'tell application "System Events" to keystroke "v" using command down'
+            ], { timeout: 1500 }, (err) => {
+              if (!err) {
+                pasted = true;
+                Logger.success('[ClipboardManager] Pasted via macOS osascript Cmd+V');
+              }
+              resolve();
+            });
+          });
+        } catch (e) {
+          Logger.warn('[ClipboardManager] macOS osascript paste fallback failed:', e.message);
+        }
+      }
+
       // 5. Restore user's previous clipboard content after paste completes
       this.restoreClipboard(previousClipboard, 200);
 

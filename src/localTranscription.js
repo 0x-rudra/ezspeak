@@ -357,9 +357,50 @@ class LocalTranscriptionService {
       return this.ffmpegPath;
     }
 
-    let ffmpegPath = require('ffmpeg-static');
-    if (!ffmpegPath) {
-      throw new Error('ffmpeg-static not found.');
+    let ffmpegPath = null;
+    try {
+      ffmpegPath = require('ffmpeg-static');
+    } catch (e) {}
+
+    // If ffmpeg-static path does not exist on disk, search candidate directories and system PATH
+    if (!ffmpegPath || !fs.existsSync(ffmpegPath)) {
+      const binName = process.platform === 'win32' ? 'ffmpeg.exe' : 'ffmpeg';
+      let candidateDirs = [
+        path.join(__dirname, '..', 'whisper-bin'),
+        path.join(__dirname, '..', 'bin')
+      ];
+      try {
+        const { app } = require('electron');
+        if (app && app.isPackaged) {
+          candidateDirs.unshift(path.join(process.resourcesPath, 'whisper-bin'));
+          candidateDirs.unshift(path.join(process.resourcesPath, 'bin'));
+        }
+      } catch (e) {}
+
+      for (const dir of candidateDirs) {
+        const candidate = path.join(dir, binName);
+        if (fs.existsSync(candidate)) {
+          this.ffmpegPath = candidate;
+          return candidate;
+        }
+      }
+
+      // Check system PATH
+      try {
+        const cmd = process.platform === 'win32' ? 'where' : 'which';
+        const res = spawnSync(cmd, [binName]);
+        if (res.status === 0) {
+          const out = res.stdout.toString().split(/\r?\n/)[0].trim();
+          if (out && fs.existsSync(out)) {
+            this.ffmpegPath = out;
+            return out;
+          }
+        }
+      } catch (e) {}
+
+      if (!ffmpegPath || !fs.existsSync(ffmpegPath)) {
+        throw new Error('ffmpeg binary not found. Please ensure ffmpeg is installed or available in PATH.');
+      }
     }
 
     if (ffmpegPath.includes('app.asar')) {

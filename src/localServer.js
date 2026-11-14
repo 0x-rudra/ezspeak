@@ -10,6 +10,7 @@ class LocalServer {
     this.onToggle = options.onToggle || (() => {});
     this.onStart = options.onStart || (() => {});
     this.onStop = options.onStop || (() => {});
+    this.onCancel = options.onCancel || (() => {});
     this.getStatus = options.getStatus || (() => ({ isRecording: false, status: 'idle' }));
     this.server = null;
     this.socketServer = null;
@@ -57,6 +58,16 @@ class LocalServer {
         this.onStop();
         res.writeHead(200);
         res.end(JSON.stringify({ success: true, action: 'stop' }));
+      } catch (e) {
+        res.writeHead(500);
+        res.end(JSON.stringify({ success: false, error: e.message }));
+      }
+    } else if (url === '/cancel') {
+      Logger.log('[LocalServer] Received /cancel trigger');
+      try {
+        this.onCancel();
+        res.writeHead(200);
+        res.end(JSON.stringify({ success: true, action: 'cancel' }));
       } catch (e) {
         res.writeHead(500);
         res.end(JSON.stringify({ success: false, error: e.message }));
